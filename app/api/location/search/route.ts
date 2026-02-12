@@ -5,7 +5,7 @@ export async function GET(request: Request) {
     const query = searchParams.get('q');
 
     // Using a placeholder or the key from env if provided
-    const KAKAO_API_KEY = process.env.KAKAO_API_KEY || '28876a44cae979a7702810fb96089304'; // Temporary for dev if user hasn't set it yet, but ideally comes from process.env
+    const KAKAO_API_KEY = process.env.KAKAO_API_KEY || 'f1d6aa2f91be83e995af7044e30ccd3f';
 
     if (!query) {
         return NextResponse.json({ error: 'Query is required' }, { status: 400 });
