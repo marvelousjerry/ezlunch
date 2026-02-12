@@ -20,57 +20,68 @@ interface Restaurant {
 function RecommendContent() {
     const searchParams = useSearchParams();
     const initialMenu = searchParams?.get('menu') || '';
+    const initialLat = searchParams?.get('lat');
+    const initialLng = searchParams?.get('lng');
+
+    const DEFAULT_LAT = 37.5615;
+    const DEFAULT_LNG = 127.0034;
 
     const [loading, setLoading] = useState(false);
     const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-    const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
+        initialLat && initialLng ? { lat: parseFloat(initialLat), lng: parseFloat(initialLng) } : null
+    );
     const [error, setError] = useState<string | null>(null);
     const [menu, setMenu] = useState(initialMenu);
 
-    // Auto-search if menu is provided and location is available
+    // Auto-search if menu/location is provided
     useEffect(() => {
-        if (initialMenu && !location) {
-            handleSearch();
+        if ((initialMenu || (initialLat && initialLng)) && !restaurants.length) {
+            handleSearch(location?.lat || DEFAULT_LAT, location?.lng || DEFAULT_LNG);
         }
-    }, [initialMenu]);
+    }, [initialMenu, initialLat, initialLng]);
 
-    const handleSearch = () => {
+    const handleSearch = async (forcedLat?: number, forcedLng?: number) => {
         setLoading(true);
         setError(null);
         setRestaurants([]);
 
-        if (!navigator.geolocation) {
-            setError('브라우저가 위치 정보를 지원하지 않습니다.');
-            setLoading(false);
-            return;
+        let lat = forcedLat;
+        let lng = forcedLng;
+
+        if (!lat || !lng) {
+            if (!navigator.geolocation) {
+                lat = DEFAULT_LAT;
+                lng = DEFAULT_LNG;
+            } else {
+                try {
+                    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
+                    });
+                    lat = pos.coords.latitude;
+                    lng = pos.coords.longitude;
+                } catch (e) {
+                    lat = DEFAULT_LAT;
+                    lng = DEFAULT_LNG;
+                }
+            }
         }
 
-        navigator.geolocation.getCurrentPosition(
-            async (position) => {
-                const { latitude, longitude } = position.coords;
-                setLocation({ lat: latitude, lng: longitude });
+        setLocation({ lat, lng });
 
-                try {
-                    const res = await fetch(`/api/restaurants?lat=${latitude}&lng=${longitude}&menu=${encodeURIComponent(menu)}`);
-                    const data = await res.json();
+        try {
+            const res = await fetch(`/api/restaurants?lat=${lat}&lng=${lng}&menu=${encodeURIComponent(menu)}`);
+            const data = await res.json();
 
-                    if (data.error) throw new Error(data.error);
+            if (data.error) throw new Error(data.error);
 
-                    setRestaurants(data.restaurants);
-                } catch (err) {
-                    console.error(err);
-                    setError('식당 정보를 불러오는데 실패했습니다.');
-                } finally {
-                    setLoading(false);
-                }
-            },
-            (err) => {
-                console.error(err);
-                setError('위치 권한을 허용해주세요.');
-                setLoading(false);
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
+            setRestaurants(data.restaurants);
+        } catch (err) {
+            console.error(err);
+            setError('식당 정보를 불러오는데 실패했습니다.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -97,11 +108,17 @@ function RecommendContent() {
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
                 <button
-                    onClick={handleSearch}
+                    onClick={() => handleSearch()}
                     className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold hover:bg-primary-hover transition-colors shadow-md shadow-orange-200"
                 >
-                    검색
+                    상세 검색
                 </button>
+            </div>
+
+            <div className="flex justify-center">
+                <Link href="/" className="text-sm font-bold text-orange-500 hover:underline flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5" /> 다른 지역에서 찾고 싶으신가요? (홈에서 다시 검색)
+                </Link>
             </div>
 
             {!location && !loading && !error && (

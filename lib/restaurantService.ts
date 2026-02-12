@@ -21,7 +21,7 @@ const FRANCHISES = [
     { name: '쿠우쿠우', category: '일식' }, { name: '명륜진사갈비', category: '한식' }
 ];
 
-async function fetchFromOSM(lat: number, lng: number, radius: number = 1200) {
+async function fetchFromOSM(lat: number, lng: number, radius: number = 1500) {
     try {
         // Expanded query to catch more places
         const query = `

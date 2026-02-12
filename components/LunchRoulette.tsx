@@ -47,6 +47,7 @@ export default function LunchRoulette() {
     const [isScanning, setIsScanning] = useState(false);
     const [scanDots, setScanDots] = useState('');
     const [menuFilter, setMenuFilter] = useState('');
+    const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number }>({ lat: 37.5615, lng: 127.0034 });
 
     // Category & Filter State
     const [categories, setCategories] = useState<string[]>([]);
@@ -78,6 +79,7 @@ export default function LunchRoulette() {
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
                     const { latitude, longitude } = position.coords;
+                    setCurrentCoords({ lat: latitude, lng: longitude });
 
                     // Reverse Geocoding for User Feedback
                     try {
@@ -109,7 +111,8 @@ export default function LunchRoulette() {
                         // Move to next step
                         setStep('category');
                     } else {
-                        alert('주변에 식당이 없습니다. 범위를 넓히거나 직접 입력해보세요.');
+                        alert('주변에 식당이 없습니다. 범위를 넓히거나 직접 검색해보세요.');
+                        // Fallback to default search if GPS returns nothing
                     }
                     setIsScanning(false);
                 },
@@ -259,12 +262,20 @@ export default function LunchRoulette() {
 
             setIsSearching(true);
             try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationSearch + ' 대한민국')}&limit=1`);
+                // Using our server-side Kakao proxy
+                const res = await fetch(`/api/location/search?q=${encodeURIComponent(locationSearch)}`);
                 const data = await res.json();
 
-                if (data.length > 0) {
-                    const { lat, lon } = data[0];
-                    // Directly call scan with coordinates
+                if (data.documents && data.documents.length > 0) {
+                    const place = data.documents[0];
+                    const lat = parseFloat(place.y);
+                    const lon = parseFloat(place.x);
+
+                    setCurrentCoords({ lat, lng: lon });
+
+                    // User feedback
+                    alert(`${place.place_name} 주변 맛집을 검색합니다.`);
+
                     setIsScanning(true);
                     const scanRes = await fetch(`/api/restaurants/scan?lat=${lat}&lng=${lon}&menu=`);
                     const scanData = await scanRes.json();
@@ -280,7 +291,7 @@ export default function LunchRoulette() {
                     }
                     setIsScanning(false);
                 } else {
-                    alert('위치를 찾을 수 없습니다. 다른 검색어를 시도해보세요.');
+                    alert('검색 결과를 찾을 수 없습니다. (업체명이나 주소를 정확히 입력해주세요)');
                 }
             } catch (error) {
                 console.error('Location search error:', error);
@@ -291,66 +302,68 @@ export default function LunchRoulette() {
         };
 
         return (
-            <div className="w-full max-w-[28rem] mx-auto p-6 flex flex-col items-center justify-center min-h-[400px] bg-white/60 backdrop-blur-md rounded-3xl shadow-xl shadow-orange-100/20 border border-white/50">
+            <div className="w-full max-w-[28rem] mx-auto p-6 flex flex-col items-center justify-center min-h-[400px] bg-white rounded-3xl shadow-xl shadow-orange-100/20 border border-orange-100">
                 <div className="mb-6 w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center animate-pulse-slow">
                     <MapPin className="w-10 h-10 text-orange-500" />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-800 mb-2">주변 맛집 스캔하기</h2>
+                <h2 className="text-2xl font-bold text-slate-800 mb-2">맛집 찾기</h2>
                 <p className="text-gray-500 text-center mb-8 break-keep">
-                    현재 위치를 기반으로 주변의 식당들을<br />빠르게 스캔하여 리스트를 만듭니다.
+                    서울특별시 중구 퇴계로 307 (기본)<br />또는 원하는 지역을 검색해보세요.
                 </p>
 
-                <button
-                    onClick={() => scanNearbyStores('')}
-                    disabled={isScanning || isSearching}
-                    className="w-full py-4 text-lg font-bold text-white bg-orange-500 rounded-2xl hover:bg-orange-600 active:scale-95 transition-all shadow-lg shadow-orange-200 flex items-center justify-center gap-2 mb-4"
-                >
-                    {isScanning ? (
-                        <>
-                            <ScanSearch className="w-6 h-6 animate-pulse" />
-                            <span className="w-24 text-left">스캔 중{scanDots}</span>
-                        </>
-                    ) : (
-                        <>
-                            <ScanSearch className="w-6 h-6" />
-                            <span>내 주변 맛집 찾기</span>
-                        </>
-                    )}
-                </button>
-
-                <div className="w-full flex items-center gap-2 mb-4">
-                    <div className="flex-1 h-px bg-gray-200"></div>
-                    <span className="text-xs text-gray-400 font-semibold">또는</span>
-                    <div className="flex-1 h-px bg-gray-200"></div>
-                </div>
-
-                <div className="w-full space-y-3">
-                    <input
-                        type="text"
-                        placeholder="예: 강남역, 판교, 홍대입구"
-                        value={locationSearch}
-                        onChange={(e) => setLocationSearch(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && searchLocation()}
-                        disabled={isScanning || isSearching}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all placeholder:text-gray-400"
-                    />
+                <div className="w-full space-y-4">
                     <button
-                        onClick={searchLocation}
+                        onClick={() => scanNearbyStores('')}
                         disabled={isScanning || isSearching}
-                        className="w-full py-3 text-base font-bold text-slate-700 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2"
+                        className="w-full py-4 text-lg font-bold text-white bg-orange-500 rounded-2xl hover:bg-orange-600 active:scale-95 transition-all shadow-lg shadow-orange-200 flex items-center justify-center gap-2"
                     >
-                        {isSearching ? (
+                        {isScanning ? (
                             <>
-                                <span className="animate-spin">↻</span>
-                                <span>검색 중...</span>
+                                <ScanSearch className="w-6 h-6 animate-pulse" />
+                                <span className="w-24 text-left">스캔 중{scanDots}</span>
                             </>
                         ) : (
                             <>
-                                <MapPin className="w-5 h-5" />
-                                <span>원하는 지역 검색</span>
+                                <ScanSearch className="w-6 h-6" />
+                                <span>내 주변 맛집 찾기</span>
                             </>
                         )}
                     </button>
+
+                    <div className="flex items-center gap-2">
+                        <div className="flex-1 h-px bg-gray-200"></div>
+                        <span className="text-xs text-gray-400 font-semibold">또는</span>
+                        <div className="flex-1 h-px bg-gray-200"></div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <input
+                            type="text"
+                            placeholder="예: 이지케어텍, 강남역, 상계동"
+                            value={locationSearch}
+                            onChange={(e) => setLocationSearch(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && searchLocation()}
+                            disabled={isScanning || isSearching}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all placeholder:text-gray-400"
+                        />
+                        <button
+                            onClick={searchLocation}
+                            disabled={isScanning || isSearching}
+                            className="w-full py-3 text-base font-bold text-slate-700 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2"
+                        >
+                            {isSearching ? (
+                                <>
+                                    <span className="animate-spin">↻</span>
+                                    <span>검색 중...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Search className="w-5 h-5" />
+                                    <span>지역/업체명 검색</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -556,10 +569,10 @@ export default function LunchRoulette() {
                             <span>🔗 공유하기</span>
                         </button>
                         <Link
-                            href={`/recommend?menu=${selectedStore.name}`}
+                            href={`/recommend?menu=${selectedStore.name}&lat=${currentCoords.lat}&lng=${currentCoords.lng}`}
                             className="flex-[1.5] py-3 px-4 bg-orange-50 text-[#FF8A3D] border border-orange-100 rounded-xl font-bold text-sm hover:bg-orange-100 transition-colors flex items-center justify-center gap-2"
                         >
-                            <Info className="w-4 h-4" /> 내 취향 더 찾기
+                            <Info className="w-4 h-4" /> 맛집 상세 지도
                         </Link>
                     </div>
                 </div>
