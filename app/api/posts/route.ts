@@ -13,12 +13,28 @@ async function searchYouTubeVideoId(query: string) {
     }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
+
         const posts = await prisma.post.findMany({
             orderBy: { createdAt: 'desc' }
         });
-        return NextResponse.json(posts);
+
+        // Check which posts are liked by the current user
+        const postsWithLiked = await Promise.all(posts.map(async (post) => {
+            const like = await (prisma.like as any).findUnique({
+                where: {
+                    postId_ip: { postId: post.id, ip }
+                }
+            });
+            return {
+                ...post,
+                liked: !!like
+            };
+        }));
+
+        return NextResponse.json(postsWithLiked);
     } catch (error) {
         return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
     }

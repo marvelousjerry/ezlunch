@@ -88,14 +88,68 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 2000, k
     }
 }
 
+/**
+ * Scrapes basic details like image and menu summary from Kakao place URL.
+ */
+async function scrapeRestaurantDetails(placeUrl: string) {
+    try {
+        const res = await fetch(placeUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+            }
+        });
+        const html = await res.text();
+
+        // Extract OG image
+        const imageMatch = html.match(/<meta property="og:image" content="([^"]+)"/);
+        let imageUrl = imageMatch ? imageMatch[1] : null;
+
+        // If it's a default icon or generic image, treat as null
+        if (imageUrl && (imageUrl.includes('kakaomap_ico') || imageUrl.includes('default'))) {
+            imageUrl = null;
+        }
+
+        // Extract description
+        const descMatch = html.match(/<meta property="og:description" content="([^"]+)"/);
+        const description = descMatch ? descMatch[1] : null;
+
+        return { imageUrl, description };
+    } catch {
+        return { imageUrl: null, description: null };
+    }
+}
+
+export async function getRestaurantDetails(placeId: string, placeUrl: string, name?: string) {
+    let details = await scrapeRestaurantDetails(placeUrl);
+
+    // Fallback if image not found: Use search API to find a thumbnail from blog posts
+    if (!details.imageUrl && name && KAKAO_API_KEY) {
+        try {
+            const searchRes = await fetch(`https://dapi.kakao.com/v2/search/blog?query=${encodeURIComponent(name + ' 맛집')}&size=1`, {
+                headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
+            });
+            const searchData = await searchRes.json();
+            if (searchData.documents && searchData.documents[0]?.thumbnail) {
+                details.imageUrl = searchData.documents[0].thumbnail;
+                if (!details.description) {
+                    details.description = searchData.documents[0].title.replace(/<[^>]*>?/gm, '');
+                }
+            }
+        } catch (e) {
+            console.error('Fallback image search failed:', e);
+        }
+    }
+
+    return details;
+}
+
 export async function getRestaurants(lat: number, lng: number, menu?: string | null, radius: number = 1000) {
     // Standardize coordinates for CJ Center
     const targetLat = (lat > 37.561 && lat < 37.562) ? 37.56350 : lat;
     const targetLng = (lng > 127.003 && lng < 127.004) ? 127.00350 : lng;
 
     try {
-        // Use fixed radius of 3000 for the initial scan to get everything, 
-        // the frontend will filter locally.
         const searchRadius = radius > 3000 ? 3000 : radius;
         const keyword = (menu && menu !== '맛집') ? menu : '맛집';
 
