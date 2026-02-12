@@ -248,6 +248,48 @@ export default function LunchRoulette() {
     // RENDER: PHASE 1 - INTRO / SCAN
     // --------------------------------------------------------------------------------
     if (step === 'intro') {
+        const [locationSearch, setLocationSearch] = useState('');
+        const [isSearching, setIsSearching] = useState(false);
+
+        const searchLocation = async () => {
+            if (!locationSearch.trim()) {
+                alert('검색할 위치를 입력해주세요.');
+                return;
+            }
+
+            setIsSearching(true);
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationSearch + ' 대한민국')}&limit=1`);
+                const data = await res.json();
+
+                if (data.length > 0) {
+                    const { lat, lon } = data[0];
+                    // Directly call scan with coordinates
+                    setIsScanning(true);
+                    const scanRes = await fetch(`/api/restaurants/scan?lat=${lat}&lng=${lon}&menu=`);
+                    const scanData = await scanRes.json();
+
+                    if (scanData.stores && scanData.stores.length > 0) {
+                        setStores(scanData.stores);
+                        const uniqueCats = Array.from(new Set(scanData.stores.map((s: Store) => s.category))).filter(Boolean) as string[];
+                        setCategories(uniqueCats);
+                        setSelectedCategories(uniqueCats);
+                        setStep('category');
+                    } else {
+                        alert('해당 위치 주변에 식당이 없습니다.');
+                    }
+                    setIsScanning(false);
+                } else {
+                    alert('위치를 찾을 수 없습니다. 다른 검색어를 시도해보세요.');
+                }
+            } catch (error) {
+                console.error('Location search error:', error);
+                alert('위치 검색 중 오류가 발생했습니다.');
+            } finally {
+                setIsSearching(false);
+            }
+        };
+
         return (
             <div className="w-full max-w-[28rem] mx-auto p-6 flex flex-col items-center justify-center min-h-[400px] bg-white/60 backdrop-blur-md rounded-3xl shadow-xl shadow-orange-100/20 border border-white/50">
                 <div className="mb-6 w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center animate-pulse-slow">
@@ -260,8 +302,8 @@ export default function LunchRoulette() {
 
                 <button
                     onClick={() => scanNearbyStores('')}
-                    disabled={isScanning}
-                    className="w-full py-4 text-lg font-bold text-white bg-orange-500 rounded-2xl hover:bg-orange-600 active:scale-95 transition-all shadow-lg shadow-orange-200 flex items-center justify-center gap-2"
+                    disabled={isScanning || isSearching}
+                    className="w-full py-4 text-lg font-bold text-white bg-orange-500 rounded-2xl hover:bg-orange-600 active:scale-95 transition-all shadow-lg shadow-orange-200 flex items-center justify-center gap-2 mb-4"
                 >
                     {isScanning ? (
                         <>
@@ -275,6 +317,41 @@ export default function LunchRoulette() {
                         </>
                     )}
                 </button>
+
+                <div className="w-full flex items-center gap-2 mb-4">
+                    <div className="flex-1 h-px bg-gray-200"></div>
+                    <span className="text-xs text-gray-400 font-semibold">또는</span>
+                    <div className="flex-1 h-px bg-gray-200"></div>
+                </div>
+
+                <div className="w-full space-y-3">
+                    <input
+                        type="text"
+                        placeholder="예: 강남역, 판교, 홍대입구"
+                        value={locationSearch}
+                        onChange={(e) => setLocationSearch(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && searchLocation()}
+                        disabled={isScanning || isSearching}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all placeholder:text-gray-400"
+                    />
+                    <button
+                        onClick={searchLocation}
+                        disabled={isScanning || isSearching}
+                        className="w-full py-3 text-base font-bold text-slate-700 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2"
+                    >
+                        {isSearching ? (
+                            <>
+                                <span className="animate-spin">↻</span>
+                                <span>검색 중...</span>
+                            </>
+                        ) : (
+                            <>
+                                <MapPin className="w-5 h-5" />
+                                <span>원하는 지역 검색</span>
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
         );
     }
