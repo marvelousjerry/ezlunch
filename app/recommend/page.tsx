@@ -46,26 +46,8 @@ function RecommendContent() {
         setError(null);
         setRestaurants([]);
 
-        let lat = forcedLat;
-        let lng = forcedLng;
-
-        if (!lat || !lng) {
-            if (!navigator.geolocation) {
-                lat = DEFAULT_LAT;
-                lng = DEFAULT_LNG;
-            } else {
-                try {
-                    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
-                    });
-                    lat = pos.coords.latitude;
-                    lng = pos.coords.longitude;
-                } catch (e) {
-                    lat = DEFAULT_LAT;
-                    lng = DEFAULT_LNG;
-                }
-            }
-        }
+        let lat = forcedLat || DEFAULT_LAT;
+        let lng = forcedLng || DEFAULT_LNG;
 
         setLocation({ lat, lng });
 
@@ -91,7 +73,7 @@ function RecommendContent() {
                     <ArrowLeft className="w-5 h-5 text-gray-600 group-hover:text-primary transition-colors" />
                 </Link>
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-                    <span className="text-primary">내 주변</span> 맛집 지도
+                    <span className="text-primary">회사 주변</span> 맛집 지도
                 </h1>
             </div>
 
@@ -124,20 +106,19 @@ function RecommendContent() {
             {!location && !loading && !error && (
                 <div className="py-20 text-center space-y-6">
                     <div className="w-24 h-24 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mx-auto text-4xl shadow-sm mb-4 animate-bounce-slow">
-                        📍
+                        🏢
                     </div>
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-900 mb-3">현재 위치를 확인합니다</h2>
+                        <h2 className="text-2xl font-bold text-slate-900 mb-3">회사 주변 맛집을 확인합니다</h2>
                         <p className="text-slate-500 text-lg leading-relaxed">
-                            브라우저의 위치 권한을 허용해주시면<br />
-                            반경 1km 내의 <span className="text-primary font-bold">"{menu || '맛집'}"</span>을 찾아드려요!
+                            회사 반경 내의 <span className="text-primary font-bold">"{menu || '맛집'}"</span>을 찾아드려요!
                         </p>
                     </div>
                     <button
-                        onClick={handleSearch}
+                        onClick={() => handleSearch()}
                         className="px-8 py-4 bg-primary text-white rounded-2xl font-bold text-lg hover:bg-primary-hover transition-all shadow-lg shadow-orange-200 hover:shadow-xl hover:-translate-y-1"
                     >
-                        내 주변 맛집 찾기
+                        회사 주변 맛집 찾기
                     </button>
                 </div>
             )}

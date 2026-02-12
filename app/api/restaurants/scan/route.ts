@@ -39,20 +39,6 @@ export async function GET(request: Request) {
 
         const storeList = Array.from(uniqueStores.values());
 
-        // 3. Fallback if scan finds too few
-        if (storeList.length < 5) {
-            const fallbacks = [
-                { id: 'fb-1', name: '김밥천국', category: '분식' },
-                { id: 'fb-2', name: '스타벅스', category: '카페' },
-                { id: 'fb-3', name: '맥도날드', category: '패스트푸드' },
-                { id: 'fb-4', name: '홍콩반점0410', category: '중식' },
-                { id: 'fb-5', name: '교촌치킨', category: '치킨' }
-            ];
-            fallbacks.forEach(f => {
-                if (!uniqueStores.has(f.name)) storeList.push(f);
-            });
-        }
-
         return NextResponse.json({
             stores: storeList,
             count: storeList.length,

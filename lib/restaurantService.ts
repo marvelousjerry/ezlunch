@@ -1,203 +1,64 @@
+const KAKAO_API_KEY = process.env.KAKAO_API_KEY || '64198d021c37d6e67926c86729227655'; // Use ENV or placeholder for now
 
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-
-// Realistic Franchise Data for Fallback
-const FRANCHISES = [
-    { name: '김밥천국', category: '분식' }, { name: '이디야커피', category: '카페' },
-    { name: '스타벅스', category: '카페' }, { name: '메가커피', category: '카페' },
-    { name: '투썸플레이스', category: '카페' }, { name: '홍콩반점0410', category: '중식' },
-    { name: '교촌치킨', category: '치킨' }, { name: 'BHC치킨', category: '치킨' },
-    { name: 'BBQ치킨', category: '치킨' }, { name: '엽기떡볶이', category: '분식' },
-    { name: '신전떡볶이', category: '분식' }, { name: '명랑핫도그', category: '분식' },
-    { name: '롯데리아', category: '패스트푸드' }, { name: '맘스터치', category: '패스트푸드' },
-    { name: '버거킹', category: '패스트푸드' }, { name: '맥도날드', category: '패스트푸드' },
-    { name: '써브웨이', category: '패스트푸드' }, { name: '한솥도시락', category: '한식' },
-    { name: '본죽', category: '한식' }, { name: '새마을식당', category: '한식' },
-    { name: '역전우동0410', category: '일식' }, { name: '국수나무', category: '한식' },
-    { name: '김가네', category: '분식' }, { name: '파리바게뜨', category: '베이커리' },
-    { name: '뚜레쥬르', category: '베이커리' }, { name: '배스킨라빈스', category: '디저트' },
-    { name: '던킨', category: '디저트' }, { name: '설빙', category: '디저트' },
-    { name: '채선당', category: '한식' }, { name: '샤브향', category: '한식' },
-    { name: '쿠우쿠우', category: '일식' }, { name: '명륜진사갈비', category: '한식' }
-];
-
-async function fetchFromOSM(lat: number, lng: number, radius: number = 1500) {
+async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, keyword: string = '맛집') {
     try {
-        // Expanded query to catch more places
-        const query = `
-      [out:json][timeout:25];
-      (
-        node["amenity"="restaurant"](around:${radius},${lat},${lng});
-        node["amenity"="fast_food"](around:${radius},${lat},${lng});
-        node["amenity"="cafe"](around:${radius},${lat},${lng});
-        node["amenity"="bar"](around:${radius},${lat},${lng});
-        node["amenity"="pub"](around:${radius},${lat},${lng});
-        node["shop"="bakery"](around:${radius},${lat},${lng});
-      );
-      out body;
-      >;
-      out skel qt;
-    `;
-        const res = await fetch('https://overpass-api.de/api/interpreter', {
-            method: 'POST',
-            body: query,
+        // Kakao Search Category: FD6 (Food), CE7 (Cafe)
+        // We'll search for both or use Keyword search for flexibility
+        const url = `https://dapi.kakao.com/v2/local/search/keyword.json?y=${lat}&x=${lng}&radius=${radius}&query=${encodeURIComponent(keyword)}&sort=distance`;
+
+        const res = await fetch(url, {
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': 'EzLunch/1.0 (me@example.com)' // Prevent blocking
+                'Authorization': `KakaoAK ${KAKAO_API_KEY}`
             }
         });
 
-        if (!res.ok) return [];
+        if (!res.ok) {
+            console.error('Kakao API Error:', await res.text());
+            return [];
+        }
 
         const data = await res.json();
-        return data.elements.map((el: any) => ({
-            id: `osm-${el.id}`,
-            name: el.tags.name || el.tags['name:ko'] || '이름 없는 곳',
-            category: el.tags.cuisine || el.tags.amenity || '식당',
-            lat: el.lat,
-            lng: el.lon,
-            distance: null, // Calculated later
-            rating: 0, // OSM doesn't have ratings
-            address: null,
-            isOpen: Math.random() > 0.3, // Mock open status (70% open)
-            source: 'osm'
-        })).filter((item: any) => item.name !== '이름 없는 곳');
+        return data.documents.map((place: any) => {
+            // Kakao category_name looks like "음식점 > 한식 > 육류,고기 > 삼겹살"
+            // We want a clean category for the roulette
+            const catParts = place.category_name.split(' > ');
+            const category = catParts.length > 1 ? catParts[1] : (catParts[0] || '기타');
+
+            return {
+                id: `kakao-${place.id}`,
+                name: place.place_name,
+                category: category,
+                lat: parseFloat(place.y),
+                lng: parseFloat(place.x),
+                distance: parseInt(place.distance),
+                address: place.road_address_name || place.address_name,
+                url: place.place_url,
+                source: 'kakao'
+            };
+        });
     } catch (e) {
-        console.warn('OSM Fetch Error:', e);
+        console.warn('Kakao Fetch Error:', e);
         return [];
     }
-}
-
-async function fetchFromOSMWithRetry(lat: number, lng: number) {
-    // Try 1km first
-    let data = await fetchFromOSM(lat, lng, 1000);
-    if (data.length > 0) return data;
-
-    // Try 3km
-    data = await fetchFromOSM(lat, lng, 3000);
-    if (data.length > 0) return data;
-
-    // Try 5km (Wide area)
-    return await fetchFromOSM(lat, lng, 5000);
 }
 
 // Helper function to get restaurants (shared logic)
 export async function getRestaurants(lat: number, lng: number, menu: string | null = null, radius: number = 1500) {
     try {
         let results: any[] = [];
-        let source = 'mock';
+        let source = 'kakao';
 
-        // 1. Google Places API (Placeholder)
-        if (GOOGLE_MAPS_API_KEY) {
-            // ... 
+        // 1. Fetch from Kakao (Filter by menu if provided, otherwise search generally)
+        const searchQuery = menu && menu !== '맛집' ? menu : '맛집';
+        results = await fetchFromKakao(lat, lng, radius, searchQuery);
+
+        // 2. If results are still empty and we had a specific menu, try searching generally for '맛집'
+        if (results.length === 0 && searchQuery !== '맛집') {
+            results = await fetchFromKakao(lat, lng, radius, '맛집');
         }
 
-        // 2. OpenStreetMap (OSM)
-        if (results.length === 0) {
-            // Use the specific radius requested by the user
-            const osmResults = await fetchFromOSM(lat, lng, radius);
-            if (osmResults.length > 0) {
-                results = osmResults;
-                source = 'osm';
-            }
-        }
-
-        // 3. Realistic Mock Data (Franchises & Context Aware)
-        // If results from OSM are empty OR if we have a menu and OSM didn't cover it well (we can't easily know, so we fallback if empty filtered)
-        // Actually, if OSM returns data but filtering removes everything, users get nothing.
-        // So we should append mock data if filtering leads to 0 results.
-
-        // Let's optimize: We get results (OSM or empty). We filter them.
-        // If count is 0, we generate mock data.
-
-        // First, filter existing results (if any)
-        if (menu && menu !== '맛집') {
-            results = results.filter(r =>
-                r.name.includes(menu) ||
-                (r.category && r.category.includes(menu)) ||
-                // Expanded mapping
-                (menu === '한식' && ['한식', '국밥', '찌개', '분식', '고기'].some(c => r.name.includes(c) || r.category?.includes(c))) ||
-                (menu === '중식' && ['중식', '짜장', '짬뽕', '반점', '마라'].some(c => r.name.includes(c) || r.category?.includes(c))) ||
-                (menu === '일식' && ['일식', '초밥', '우동', '돈까스', '소바', '라멘'].some(c => r.name.includes(c) || r.category?.includes(c))) ||
-                (menu === '양식' && ['양식', '파스타', '피자', '스테이크', '버거'].some(c => r.name.includes(c) || r.category?.includes(c))) ||
-                (menu === '카페' && ['카페', '커피', '디저트'].some(c => r.name.includes(c) || r.category?.includes(c)))
-            );
-        }
-
-        // If no results after filtering (or no OSM data), generate Mock
-        if (results.length === 0) {
-            source = 'mock-forced';
-
-            // Generate basic random franchises
-            let mockCandidates = Array.from({ length: 15 }).map((_, index) => {
-                const franchise = FRANCHISES[Math.floor(Math.random() * FRANCHISES.length)];
-                // ... random offsets ...
-                const latOffset = (Math.random() - 0.5) * 0.005;
-                const lngOffset = (Math.random() - 0.5) * 0.005;
-                return {
-                    id: `mock-${index}`,
-                    name: franchise.name,
-                    category: franchise.category,
-                    lat: lat + latOffset,
-                    lng: lng + lngOffset,
-                    distance: null,
-                    rating: (Math.random() * 1.5 + 3.5).toFixed(1),
-                    address: '가상 주소',
-                    isOpen: true,
-                    source: 'mock-realistic'
-                };
-            });
-
-            // If a specific menu was requested, Force-Generate matching items
-            if (menu && menu !== '맛집') {
-                const forcedMocks = [
-                    { name: `맛있는 ${menu}`, category: menu },
-                    { name: `${menu} 전문점`, category: menu },
-                    { name: `소문난 ${menu}`, category: menu },
-                    { name: `${menu}천국`, category: menu },
-                    { name: `${menu}월드`, category: menu }
-                ].map((item, idx) => ({
-                    id: `mock-forced-${idx}`,
-                    name: item.name,
-                    category: item.category,
-                    lat: lat + (Math.random() - 0.5) * 0.003,
-                    lng: lng + (Math.random() - 0.5) * 0.003,
-                    distance: null,
-                    rating: (Math.random() * 1.0 + 4.0).toFixed(1),
-                    address: `${menu} 맛집 거리`,
-                    isOpen: true,
-                    source: 'mock-forced'
-                }));
-                // Prepend forced mocks
-                mockCandidates = [...forcedMocks, ...mockCandidates];
-            }
-
-            // Apply filter again to the mixed mock data (generic + forced)
-            if (menu && menu !== '맛집') {
-                results = mockCandidates.filter(r =>
-                    r.name.includes(menu) ||
-                    (r.category && r.category.includes(menu))
-                );
-            } else {
-                results = mockCandidates;
-            }
-        }
-        // ... (Distance calculation logic follows)
-
-        // Calculate distance and Sort
-        results = results.map(place => {
-            const R = 6371e3;
-            const φ1 = lat * Math.PI / 180;
-            const φ2 = place.lat * Math.PI / 180;
-            const Δφ = (place.lat - lat) * Math.PI / 180;
-            const Δλ = (place.lng - lng) * Math.PI / 180;
-            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            const d = R * c;
-            return { ...place, distance: Math.round(d) };
-        }).sort((a, b) => a.distance - b.distance);
+        // Final sorting by distance (redundant but safe)
+        results = results.sort((a, b) => a.distance - b.distance);
 
         return { restaurants: results, source };
     } catch (error) {

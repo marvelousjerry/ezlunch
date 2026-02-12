@@ -10,14 +10,8 @@ type Store = {
     category: string;
 };
 
-// Fallback Data
-const INITIAL_STORES: Store[] = [
-    { id: 'init-1', name: '김밥천국', category: '분식' },
-    { id: 'init-2', name: '스타벅스', category: '카페' },
-    { id: 'init-3', name: '맥도날드', category: '패스트푸드' },
-    { id: 'init-4', name: '홍콩반점', category: '중식' },
-    { id: 'init-5', name: '교촌치킨', category: '치킨' }
-];
+// Fallback Data - Removed for real-data-only enforcement
+const INITIAL_STORES: Store[] = [];
 
 const PENALTIES = [
     '오늘은 내가 쏜다! 🔫',
@@ -73,7 +67,7 @@ export default function LunchRoulette() {
         setIsScanning(true);
         setStores([]);
 
-        // Default location: 서울특별시 중구 퇴계로 307 (CJ제일제당 센터)
+        // Default location: 회사 (CJ제일제당 센터)
         const latitude = 37.5615;
         const longitude = 127.0034;
         setCurrentCoords({ lat: latitude, lng: longitude });
@@ -229,7 +223,7 @@ export default function LunchRoulette() {
 
                 <h2 className="text-3xl font-black text-slate-800 mb-3 tracking-tight">어디까지 가실래요?</h2>
                 <p className="text-slate-500 text-center mb-10 break-keep font-medium leading-relaxed">
-                    <span className="text-orange-600 font-bold">퇴계로 307</span>을 기준으로<br />
+                    <span className="text-orange-600 font-bold">회사</span>를 기준으로<br />
                     맛있는 식당을 찾아볼 반경을 선택해 주세요.
                 </p>
 
@@ -330,11 +324,15 @@ export default function LunchRoulette() {
     return (
         <div className="flex flex-col items-center justify-center p-6 md:p-8 bg-white/60 backdrop-blur-md rounded-3xl shadow-xl shadow-orange-100/20 border border-white/50 w-full max-w-[28rem] mx-auto relative transition-transform duration-300">
 
-            {/* Header / Reset */}
-            <div className="absolute top-5 left-5 z-20">
+            {/* Header / Reset / Edit */}
+            <div className="absolute top-5 left-5 z-20 flex gap-4">
                 <button onClick={resetFlow} className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors">
                     <RotateCcw className="w-4 h-4" />
                     <span className="text-xs font-semibold">처음으로</span>
+                </button>
+                <button onClick={() => setStep('category')} className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors">
+                    <Check className="w-4 h-4" />
+                    <span className="text-xs font-semibold">카테고리 수정</span>
                 </button>
             </div>
 
