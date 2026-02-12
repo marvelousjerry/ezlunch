@@ -6,6 +6,7 @@ import { ArrowLeft, Music, Send } from 'lucide-react';
 
 interface Post {
     id: string;
+    videoId?: string;
     title: string;
     artist: string;
     content: string;
@@ -223,7 +224,7 @@ export default function BoardPage() {
                                 </div>
                                 <div className="w-24 h-24 bg-gray-200 rounded-xl flex-shrink-0 overflow-hidden relative group-hover:scale-105 transition-transform">
                                     <img
-                                        src={`https://img.youtube.com/vi/${post.id}/0.jpg`}
+                                        src={`https://img.youtube.com/vi/${post.videoId}/0.jpg`}
                                         onError={(e) => {
                                             (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.artist}&background=random`
                                         }}

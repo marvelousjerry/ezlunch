@@ -43,11 +43,11 @@ export async function POST(request: Request) {
         }
 
         // Try to fetch real video ID
-        const videoId = await searchYouTubeVideoId(`${artist} ${title}`);
+        const fetchedVideoId = await searchYouTubeVideoId(`${artist} ${title}`);
 
-        const newPost = await prisma.post.create({
+        const newPost = await (prisma.post as any).create({
             data: {
-                id: videoId || undefined,
+                videoId: fetchedVideoId || null,
                 title,
                 artist,
                 content: content || '',
@@ -57,9 +57,17 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json(newPost, { status: 201 });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Failed to create post:', error);
-        return NextResponse.json({ error: 'Failed to create post' }, { status: 500 });
+
+        // If it's a field error (like password or videoId not existing in DB yet), 
+        // we can't do much without a migration, but we should at least log it properly.
+        const errorMessage = error.message || 'Failed to create post';
+
+        return NextResponse.json({
+            error: '게시글 저장에 실패했습니다. DB 동기화가 필요할 수 있습니다.',
+            details: errorMessage
+        }, { status: 500 });
     }
 }
 
@@ -74,8 +82,8 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'ID is required' }, { status: 400 });
         }
 
-        // Get post to check password
-        const post = await prisma.post.findUnique({
+        // Get post to check password (cast to any for fields added manually to schema)
+        const post = await (prisma.post as any).findUnique({
             where: { id }
         });
 
@@ -109,7 +117,7 @@ export async function PATCH(request: Request) {
         }
 
         // Get post to check password
-        const post = await prisma.post.findUnique({
+        const post = await (prisma.post as any).findUnique({
             where: { id }
         });
 
@@ -122,7 +130,7 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: '비밀번호가 일치하지 않습니다.' }, { status: 403 });
         }
 
-        const updatedPost = await prisma.post.update({
+        const updatedPost = await (prisma.post as any).update({
             where: { id },
             data: {
                 title: title !== undefined ? title : post.title,

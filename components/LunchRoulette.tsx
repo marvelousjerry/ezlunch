@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shuffle, Check, ScanSearch, Info, MapPin, ArrowRight, RotateCcw } from 'lucide-react';
+import { Shuffle, Check, ScanSearch, Info, MapPin, ArrowRight, RotateCcw, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 type Store = {
@@ -10,9 +10,6 @@ type Store = {
     category: string;
     distance?: number;
 };
-
-// Fallback Data - Removed for real-data-only enforcement
-const INITIAL_STORES: Store[] = [];
 
 const PENALTIES = [
     '오늘은 내가 쏜다! 🔫',
@@ -41,23 +38,25 @@ export default function LunchRoulette() {
     const [stores, setStores] = useState<Store[]>([]);
     const [isScanning, setIsScanning] = useState(false);
     const [scanDots, setScanDots] = useState('');
-    const [menuFilter, setMenuFilter] = useState('');
     const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number }>({ lat: 37.5635, lng: 127.0035 });
 
     // Category & Filter State
     const [categories, setCategories] = useState<string[]>([]);
     const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
-    const [selectedRadius, setSelectedRadius] = useState<number>(1000);
-    const [initialLoading, setInitialLoading] = useState(true);
-
-    // Auto-scan on mount (3km range to cover everything)
+    // Dot Animation Effect
     useEffect(() => {
-        initialScan();
-    }, []);
+        if (!isScanning) {
+            setScanDots('');
+            return;
+        }
+        const interval = setInterval(() => {
+            setScanDots(prev => prev.length >= 3 ? '' : prev + '.');
+        }, 500);
+        return () => clearInterval(interval);
+    }, [isScanning]);
 
     const initialScan = async () => {
-        setInitialLoading(true);
         setIsScanning(true);
         setStores([]);
 
@@ -67,67 +66,34 @@ export default function LunchRoulette() {
         setCurrentCoords({ lat: latitude, lng: longitude });
 
         try {
-            // Scan maximum range 3000m once with cache-busting
-            const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&t=${Date.now()}`);
+            // Scan 2000m range as default
+            const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=2000&t=${Date.now()}`);
             const data = await res.json();
 
             if (data.stores) {
                 setStores(data.stores);
+                const uniqueCats = Array.from(new Set(data.stores.map((s: any) => s.category))).filter(Boolean) as string[];
+                setCategories(uniqueCats);
+                setSelectedCategories(uniqueCats);
+                setStep('category');
+            } else {
+                alert('주변 식당을 찾을 수 없습니다.');
             }
         } catch (error) {
             console.error('Initial scan failed', error);
+            alert('데이터 로드 실패');
         } finally {
             setIsScanning(false);
-            setInitialLoading(false);
         }
     };
 
-    const selectRadiusAndProceed = (radius: number) => {
-        setSelectedRadius(radius);
-
-        // Filter stores by radius
-        const inRange = stores.filter(s => {
-            return (s.distance || 0) <= radius;
-        });
-
-        if (inRange.length === 0) {
-            alert(`해당 반경 내에 식당이 없습니다. (현재 발견된 총 식당: ${stores.length}곳). 다른 범위를 선택해주세요.`);
-            return;
-        }
-
-        // Extract Categories from filtered stores
-        const uniqueCats = Array.from(new Set(inRange.map((s: any) => s.category))).filter(Boolean) as string[];
-        setCategories(uniqueCats);
-        setSelectedCategories(uniqueCats); // Default select all
-
-        // Move to next step
-        setStep('category');
-    };
-
-    // Keep resetFlow but adjust if needed
     const resetFlow = () => {
         setStep('intro');
-        // We keep 'stores' from initial load to avoid re-scanning
         setSelectedStore(null);
         setSelectedPenalty(null);
         setIsSpinning(false);
         setIsPenalty(false);
-        setMenuFilter('');
     };
-
-    // Dot Animation Effect
-    useEffect(() => {
-        if (!isScanning) {
-            setScanDots('');
-            return;
-        }
-
-        const interval = setInterval(() => {
-            setScanDots(prev => prev.length >= 3 ? '' : prev + '.');
-        }, 500);
-
-        return () => clearInterval(interval);
-    }, [isScanning]);
 
     const toggleCategory = (cat: string) => {
         if (selectedCategories.includes(cat)) {
@@ -155,36 +121,28 @@ export default function LunchRoulette() {
 
     const spin = () => {
         if (isSpinning) return;
-
-        // Filter candidates
         let candidates = stores.filter(s => selectedCategories.includes(s.category));
-
-        // Safety check
         if (candidates.length === 0) {
             alert('선택된 카테고리에 해당하는 식당이 없습니다.');
             return;
         }
 
-        // Apply Penaly Logic (10% chance)
         if (useRandomPenalty && Math.random() < 0.1) {
             setIsSpinning(true);
             let duration = 0;
             const interval = setInterval(() => {
-                setMenuFilter(PENALTIES[Math.floor(Math.random() * PENALTIES.length)]);
                 duration += 100;
-                if (duration > 3000) {
+                if (duration > 2500) {
                     clearInterval(interval);
                     setIsSpinning(false);
                     setIsPenalty(true);
-                    const penalty = PENALTIES[Math.floor(Math.random() * PENALTIES.length)];
-                    setSelectedPenalty(penalty);
+                    setSelectedPenalty(PENALTIES[Math.floor(Math.random() * PENALTIES.length)]);
                     setSelectedStore(null);
                 }
             }, 100);
             return;
         }
 
-        // Normal Spin
         setIsSpinning(true);
         setIsPenalty(false);
         setSelectedPenalty(null);
@@ -194,312 +152,155 @@ export default function LunchRoulette() {
         let speed = 50;
 
         const animate = () => {
-            // Pick random from filtered list
             const randomStore = candidates[Math.floor(Math.random() * candidates.length)];
             setSelectedStore(randomStore);
             duration += speed;
 
-            if (duration < 3000) {
-                if (duration > 2000) speed += 10; // Slow down
+            if (duration < 2500) {
+                if (duration > 1500) speed += 20;
                 setTimeout(animate, speed);
             } else {
                 setIsSpinning(false);
-                // Final Pick
-                let finalStore;
-                if (avoidDuplicates) {
-                    finalStore = candidates[Math.floor(Math.random() * candidates.length)];
-                } else {
-                    finalStore = candidates[Math.floor(Math.random() * candidates.length)];
-                }
+                const finalStore = candidates[Math.floor(Math.random() * candidates.length)];
                 setSelectedStore(finalStore);
             }
         };
         animate();
     };
 
-    // --------------------------------------------------------------------------------
-    // RENDER: PHASE 1 - RADIUS SELECTION
-    // --------------------------------------------------------------------------------
+    // --- RENDER ---
+
     if (step === 'intro') {
-        const radii = [
-            { value: 500, label: '산책 겸 500m' },
-            { value: 1000, label: '가뿐한 1km' },
-            { value: 1500, label: '넉넉한 1.5km' },
-            { value: 2000, label: '도전! 2km' },
-            { value: 2500, label: '원정 미식 2.5km' },
-            { value: 3000, label: '대장정 3km' }
-        ];
-
         return (
-            <div className="w-full max-w-[30rem] mx-auto p-10 flex flex-col items-center justify-center min-h-[450px] bg-white rounded-[2.5rem] shadow-2xl shadow-orange-100/50 border border-orange-50 relative overflow-hidden">
-                {/* Decorative background element */}
-                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-orange-50 rounded-full blur-3xl opacity-50"></div>
+            <div className="w-full max-w-[30rem] mx-auto p-12 flex flex-col items-center justify-center min-h-[480px] bg-white rounded-[3rem] shadow-2xl shadow-orange-100/50 border border-orange-50 relative overflow-hidden animate-fade-in">
+                {/* Decorative Elements */}
+                <div className="absolute top-0 right-0 -mr-20 -mt-20 w-56 h-56 bg-orange-50 rounded-full blur-3xl opacity-60"></div>
 
-                <div className="mb-8 w-24 h-24 bg-gradient-to-br from-orange-400 to-orange-600 rounded-3xl flex items-center justify-center shadow-lg shadow-orange-200 rotate-6 transform transition-transform hover:rotate-0 duration-300">
-                    <MapPin className="w-12 h-12 text-white" />
+                <div className="mb-10 w-28 h-28 bg-gradient-to-br from-orange-400 to-orange-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-orange-200 rotate-6 transform hover:rotate-0 transition-transform duration-500 cursor-pointer">
+                    <MapPin className="w-14 h-14 text-white" />
                 </div>
 
-                <h2 className="text-3xl font-black text-slate-800 mb-3 tracking-tight">어디까지 가실래요?</h2>
-                <p className="text-slate-500 text-center mb-10 break-keep font-medium leading-relaxed">
-                    <span className="text-orange-600 font-bold">회사</span>를 기준으로<br />
-                    맛있는 식당을 찾아볼 반경을 선택해 주세요.
-                </p>
-
-                <div className="grid grid-cols-2 gap-4 w-full relative z-10">
-                    {radii.map((r) => {
-                        const countInRange = stores.filter(s => (s.distance || 0) <= r.value).length;
-
-                        return (
-                            <button
-                                key={r.value}
-                                onClick={() => selectRadiusAndProceed(r.value)}
-                                disabled={initialLoading}
-                                className={`group py-5 rounded-[1.5rem] font-bold transition-all flex flex-col items-center justify-center border-2 ${initialLoading
-                                    ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
-                                    : 'bg-white border-orange-50 text-slate-700 hover:border-orange-500 hover:bg-orange-50 hover:text-orange-600 active:scale-95 shadow-sm hover:shadow-orange-100'
-                                    }`}
-                            >
-                                <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 group-hover:text-orange-400 mb-1 transition-colors">Distance</span>
-                                <span className="text-lg">{r.label.split(' ')[0]}</span>
-                                <div className="flex items-baseline gap-1 mt-1">
-                                    <span className="text-2xl font-black leading-none">
-                                        {r.value >= 1000 ? `${r.value / 1000}km` : `${r.value}m`}
-                                    </span>
-                                    {(!initialLoading && stores.length > 0) && (
-                                        <span className="text-xs font-bold text-orange-500 animate-fade-in">{countInRange}곳</span>
-                                    )}
-                                </div>
-                            </button>
-                        );
-                    })}
+                <div className="text-center space-y-4 mb-12 relative z-10">
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tighter">오늘 뭐 먹지?</h2>
+                    <p className="text-slate-500 font-medium leading-relaxed break-keep px-4">
+                        <span className="text-orange-600 font-bold">회사(제일제당 센터)</span> 주변의<br />
+                        맛있는 식당들을 찾아보러 갈까요?
+                    </p>
                 </div>
 
-                {isScanning && (
-                    <div className="absolute inset-0 z-20 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-4 animate-enter">
-                        <div className="relative">
-                            <div className="w-16 h-16 border-4 border-orange-100 border-t-orange-500 rounded-full animate-spin"></div>
-                            <ScanSearch className="w-6 h-6 text-orange-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
-                        </div>
-                        <div className="text-center">
-                            <p className="text-slate-800 font-black text-xl mb-1">회사 주변 맛집 찾는 중</p>
-                            <p className="text-orange-500 font-bold tracking-widest">{scanDots}</p>
-                        </div>
-                    </div>
-                )}
+                <button
+                    onClick={initialScan}
+                    disabled={isScanning}
+                    className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold text-xl shadow-2xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 relative group overflow-hidden"
+                >
+                    <span className="relative z-10">{isScanning ? `탐색 중${scanDots}` : '시작하기'}</span>
+                    <div className="absolute inset-0 bg-primary translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                </button>
             </div>
         );
     }
 
-    // --------------------------------------------------------------------------------
-    // RENDER: PHASE 2 - CATEGORY SELECT
-    // --------------------------------------------------------------------------------
     if (step === 'category') {
         return (
-            <div className="w-full max-w-[28rem] mx-auto p-6 flex flex-col bg-white/60 backdrop-blur-md rounded-3xl shadow-xl shadow-orange-100/20 border border-white/50 min-h-[500px]">
-                <div className="flex items-center justify-between mb-6">
-                    <button onClick={resetFlow} className="p-2 -ml-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
-                        <RotateCcw className="w-5 h-5" />
+            <div className="w-full max-w-[30rem] mx-auto p-8 flex flex-col bg-white rounded-[2.5rem] shadow-2xl shadow-orange-100/30 border border-orange-50 min-h-[500px] animate-fade-in-up">
+                <div className="flex items-center justify-between mb-8">
+                    <button onClick={resetFlow} className="p-3 -ml-2 text-slate-400 hover:text-primary rounded-full hover:bg-orange-50 transition-all">
+                        <ArrowLeft className="w-6 h-6" />
                     </button>
-                    <h2 className="text-xl font-bold text-slate-800">카테고리 선택</h2>
-                    <div className="w-9"></div> {/* Spacer for centering */}
+                    <h2 className="text-2xl font-black text-slate-800">카테고리 선택</h2>
+                    <div className="w-10"></div>
                 </div>
-
-                <div className="flex items-center justify-between mb-3 px-1">
-                    <span className="text-sm font-bold text-slate-600">
-                        총 {categories.length}개 종류 발견
-                    </span>
-                    <button onClick={toggleAllCategories} className="text-xs text-orange-500 font-semibold hover:underline">
+                <div className="flex items-center justify-between mb-4 px-1 text-sm font-bold">
+                    <p className="text-slate-500">주변 <span className="text-primary">{stores.length}곳</span> 발견!</p>
+                    <button onClick={toggleAllCategories} className="text-orange-600 hover:underline">
                         {selectedCategories.length === categories.length ? '전체 해제' : '전체 선택'}
                     </button>
                 </div>
-
-                <div className="flex-1 overflow-y-auto w-full mb-6 max-h-[300px] scrollbar-hide p-1">
-                    <div className="flex flex-wrap gap-2 content-start pb-2 px-1">
-                        {categories.map((cat, idx) => (
+                <div className="flex-1 overflow-y-auto pr-1 mb-8 max-h-[300px]">
+                    <div className="grid grid-cols-2 gap-3">
+                        {categories.map((cat) => (
                             <button
-                                key={idx}
+                                key={cat}
                                 onClick={() => toggleCategory(cat)}
-                                className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 border w-[calc(50%-0.5rem)] grow-0 flex items-center justify-center ${selectedCategories.includes(cat)
-                                    ? 'bg-orange-100 border-orange-200 text-orange-700 shadow-sm outline outline-1 outline-orange-300'
-                                    : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
+                                className={`p-4 rounded-2xl font-bold text-sm transition-all border-2 flex flex-col items-center gap-2 ${selectedCategories.includes(cat) ? 'bg-orange-50 border-primary text-primary shadow-inner' : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-50'
                                     }`}
                             >
+                                <span className="text-xl">{cat === '전체' ? '🥘' : '🍴'}</span>
                                 {cat}
                             </button>
                         ))}
                     </div>
                 </div>
-
                 <button
                     onClick={goToRoulette}
                     disabled={selectedCategories.length === 0}
-                    className={`w-full py-4 text-lg font-bold rounded-2xl transition-all shadow-lg flex items-center justify-center gap-2 ${selectedCategories.length > 0
-                        ? 'bg-slate-800 text-white hover:bg-slate-900 active:scale-95 shadow-slate-200'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
+                    className="w-full py-5 bg-primary text-white rounded-2xl font-bold text-xl shadow-xl shadow-orange-200 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                 >
-                    <span>{stores.filter(s => selectedCategories.includes(s.category)).length}개 맛집으로 룰렛 돌리기</span>
-                    <ArrowRight className="w-5 h-5" />
+                    선택 완료 <ArrowRight className="w-6 h-6" />
                 </button>
             </div>
         );
     }
 
-    // --------------------------------------------------------------------------------
-    // RENDER: PHASE 3 - ROULETTE (SPIN)
-    // --------------------------------------------------------------------------------
     return (
-        <div className="flex flex-col items-center justify-center p-6 md:p-8 bg-white/60 backdrop-blur-md rounded-3xl shadow-xl shadow-orange-100/20 border border-white/50 w-full max-w-[28rem] mx-auto relative transition-transform duration-300">
-
-            {/* Header / Reset / Edit */}
-            <div className="absolute top-5 left-5 z-20 flex gap-4">
-                <button onClick={resetFlow} className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors">
-                    <RotateCcw className="w-4 h-4" />
-                    <span className="text-xs font-semibold">처음으로</span>
+        <div className="flex flex-col items-center justify-center p-8 bg-white/80 backdrop-blur-md rounded-[2.5rem] shadow-2xl border border-orange-50 w-full max-w-[30rem] mx-auto relative animate-fade-in">
+            <div className="absolute top-6 left-6 flex gap-4 z-20">
+                <button onClick={resetFlow} className="flex items-center gap-1 text-gray-400 hover:text-primary transition-colors">
+                    <RotateCcw className="w-4 h-4" /> <span className="text-xs font-bold">처음으로</span>
                 </button>
-                <button onClick={() => setStep('category')} className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors">
-                    <Check className="w-4 h-4" />
-                    <span className="text-xs font-semibold">카테고리 수정</span>
+                <button onClick={() => setStep('category')} className="flex items-center gap-1 text-gray-400 hover:text-primary transition-colors">
+                    <Check className="w-4 h-4" /> <span className="text-xs font-bold">카테고리 수정</span>
                 </button>
             </div>
 
-            {/* Filter Info Badge */}
-            <div className="absolute top-5 right-5 z-20">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 rounded-full border border-orange-100">
-                    <Check className="w-3.5 h-3.5 text-orange-500" />
-                    <span className="text-xs font-semibold text-orange-600">
-                        {stores.filter(s => selectedCategories.includes(s.category)).length}개 후보 대기중
-                    </span>
-                </div>
-            </div>
-
-            {/* Roulette Display */}
-            <div className={`w-full h-64 md:h-72 flex flex-col items-center justify-center rounded-[2rem] mb-8 relative overflow-hidden transition-colors duration-300 mt-8 ${isPenalty ? 'bg-red-50' : 'bg-orange-50/50'}`}>
-                {/* Default State */}
+            <div className={`w-full h-64 flex flex-col items-center justify-center rounded-[2rem] mb-8 relative overflow-hidden mt-12 ${isPenalty ? 'bg-red-50' : 'bg-orange-50/50'}`}>
                 {!selectedStore && !selectedPenalty && !isSpinning && (
-                    <div className="flex flex-col items-center gap-4 animate-fade-in">
-                        <div className="w-24 h-24 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center shadow-inner">
-                            <span className="text-5xl">🥘</span>
-                        </div>
-                        <p className="text-sm text-gray-500 font-medium">준비 완료! 버튼을 눌러주세요</p>
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-inner text-4xl">🥘</div>
+                        <p className="text-sm text-gray-500 font-bold">버튼을 눌러주세요!</p>
                     </div>
                 )}
-
-                {/* Display Content */}
                 {(selectedStore || selectedPenalty) && (
-                    <div className="relative z-10 text-center px-4 w-full animate-enter">
+                    <div className="text-center px-4 animate-enter">
                         {isPenalty ? (
-                            <>
-                                <div className="text-5xl mb-4 animate-bounce">🚨</div>
-                                <div className="text-xl font-bold text-red-500 break-keep leading-snug">
-                                    {selectedPenalty}
-                                </div>
-                            </>
+                            <><div className="text-5xl mb-4 animate-bounce">🚨</div><div className="text-xl font-black text-red-500">{selectedPenalty}</div></>
                         ) : (
                             selectedStore && (
-                                <>
-                                    <div className={`transition-all duration-300 ${isSpinning ? 'scale-95 opacity-50 blur-[0.5px]' : 'scale-100 opacity-100'}`}>
-                                        <h2 className="text-3xl md:text-4xl font-bold text-slate-800 mb-2 leading-tight break-keep">
-                                            {selectedStore.name}
-                                        </h2>
-                                        <span className="inline-block px-3 py-1 bg-orange-100 rounded-full text-sm font-bold text-orange-600">
-                                            {selectedStore.category}
-                                        </span>
-                                    </div>
-                                </>
+                                <div className={isSpinning ? 'opacity-50 blur-sm scale-95' : 'scale-100 opacity-100'}>
+                                    <h2 className="text-3xl font-black text-slate-800 mb-2 break-keep">{selectedStore.name}</h2>
+                                    <span className="px-3 py-1 bg-orange-100 rounded-full text-xs font-bold text-orange-600">{selectedStore.category}</span>
+                                </div>
                             )
                         )}
                     </div>
                 )}
             </div>
 
-            {/* Controls */}
-            <div className="w-full space-y-6 relative z-10">
-                <div className="flex items-center justify-center gap-4 select-none">
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                        <div className={`relative w-12 h-7 rounded-full transition-colors duration-200 ease-in-out ${useRandomPenalty ? 'bg-orange-500' : 'bg-gray-200'}`}>
-                            <div className={`absolute top-1 left-1 bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${useRandomPenalty ? 'translate-x-5' : ''}`}></div>
-                        </div>
-                        <input type="checkbox" className="hidden" checked={useRandomPenalty} onChange={(e) => setUseRandomPenalty(e.target.checked)} />
-                        <span className={`text-sm font-bold transition-colors ${useRandomPenalty ? 'text-orange-600' : 'text-gray-400'}`}>벌칙 10%</span>
+            <div className="w-full space-y-6">
+                <div className="flex justify-center gap-6">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" className="w-4 h-4 accent-primary" checked={useRandomPenalty} onChange={(e) => setUseRandomPenalty(e.target.checked)} />
+                        <span className="text-xs font-bold text-slate-500">벌칙 10%</span>
                     </label>
-
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                        <div className={`relative w-12 h-7 rounded-full transition-colors duration-200 ease-in-out ${avoidDuplicates ? 'bg-orange-500' : 'bg-gray-200'}`}>
-                            <div className={`absolute top-1 left-1 bg-white w-5 h-5 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${avoidDuplicates ? 'translate-x-5' : ''}`}></div>
-                        </div>
-                        <input type="checkbox" className="hidden" checked={avoidDuplicates} onChange={(e) => setAvoidDuplicates(e.target.checked)} />
-                        <span className={`text-sm font-bold transition-colors ${avoidDuplicates ? 'text-orange-600' : 'text-gray-400'}`}>중복 방지</span>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" className="w-4 h-4 accent-primary" checked={avoidDuplicates} onChange={(e) => setAvoidDuplicates(e.target.checked)} />
+                        <span className="text-xs font-bold text-slate-500">중복 방지</span>
                     </label>
                 </div>
-
-                <div className="relative flex justify-center mt-6">
-                    <button
-                        onClick={spin}
-                        disabled={isSpinning}
-                        className={`w-full md:w-auto md:px-12 py-4 rounded-2xl font-bold text-lg shadow-lg transform transition-all duration-200 active:scale-95 disabled:active:scale-100 ${isSpinning
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none border border-gray-200'
-                            : 'bg-gradient-to-b from-[#FF8A3D] to-[#E57A30] text-white shadow-orange-200 hover:shadow-orange-300 hover:-translate-y-1 border-b-4 border-[#C96218]'
-                            }`}
-                    >
-                        <div className="flex items-center justify-center gap-2">
-                            {isSpinning ? (
-                                <span className="animate-spin text-xl">↻</span>
-                            ) : (
-                                <Shuffle className="w-6 h-6" />
-                            )}
-                            <span>{isSpinning ? 'R O L L I N G ...' : 'LUNCH SPIN!'}</span>
-                        </div>
-                    </button>
-                </div>
+                <button
+                    onClick={spin}
+                    disabled={isSpinning}
+                    className="w-full py-5 bg-gradient-to-b from-orange-400 to-orange-600 text-white rounded-2xl font-black text-xl shadow-xl shadow-orange-200 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                    <Shuffle className={`w-6 h-6 ${isSpinning ? 'animate-spin' : ''}`} />
+                    {isSpinning ? 'G O !' : 'LUNCH SPIN!'}
+                </button>
             </div>
 
-            {/* Result Action */}
             {selectedStore && !isSpinning && !isPenalty && (
-                <div className="mt-8 w-full animate-enter space-y-3">
-                    <div className="flex gap-3">
-                        <Link
-                            href={`https://map.naver.com/p/search/${encodeURIComponent(selectedStore.name)}`}
-                            target="_blank"
-                            className="flex-1 py-3.5 px-4 bg-[#03C75A] text-white rounded-xl font-bold text-sm hover:bg-[#02b351] transition-colors flex items-center justify-center gap-2 shadow-md shadow-green-500/20"
-                        >
-                            <span className="font-extrabold">N</span> 네이버
-                        </Link>
-                        <Link
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedStore.name)}`}
-                            target="_blank"
-                            className="flex-1 py-3.5 px-4 bg-blue-500 text-white rounded-xl font-bold text-sm hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 shadow-md shadow-blue-500/20"
-                        >
-                            <span className="font-extrabold">G</span> 구글맵
-                        </Link>
-                    </div>
-
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => {
-                                const text = `🍽️ 오늘의 점심 추천: ${selectedStore.name} (${selectedStore.category})\n오늘 여기서 어때요?`;
-                                if (navigator.share) {
-                                    navigator.share({
-                                        title: '오늘의 점심 추천',
-                                        text: text,
-                                        url: window.location.href,
-                                    }).catch(console.error);
-                                } else {
-                                    navigator.clipboard.writeText(`${text}\n${window.location.href}`);
-                                    alert('링크가 복사되었습니다!');
-                                }
-                            }}
-                            className="flex-1 py-3 px-4 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <span>🔗 공유하기</span>
-                        </button>
-                        <Link
-                            href={`/recommend?menu=${selectedStore.name}&lat=${currentCoords.lat}&lng=${currentCoords.lng}`}
-                            className="flex-[1.5] py-3 px-4 bg-orange-50 text-[#FF8A3D] border border-orange-100 rounded-xl font-bold text-sm hover:bg-orange-100 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Info className="w-4 h-4" /> 맛집 상세 지도
-                        </Link>
-                    </div>
+                <div className="mt-8 w-full grid grid-cols-2 gap-3 animate-enter">
+                    <Link href={`https://map.naver.com/p/search/${encodeURIComponent(selectedStore.name)}`} target="_blank" className="py-3 bg-[#03C75A] text-white rounded-xl font-bold text-center text-sm">네이버 지도</Link>
+                    <Link href={`/recommend?menu=${selectedStore.name}&lat=${currentCoords.lat}&lng=${currentCoords.lng}`} className="py-3 bg-orange-50 text-primary border border-orange-100 rounded-xl font-bold text-center text-sm flex items-center justify-center gap-2"><Info className="w-4 h-4" /> 맛집 상세</Link>
                 </div>
             )}
         </div>

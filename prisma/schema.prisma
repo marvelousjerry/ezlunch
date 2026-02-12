@@ -17,6 +17,7 @@ model User {
 
 model Post {
   id        String   @id @default(cuid())
+  videoId   String?
   title     String
   artist    String
   content   String?
