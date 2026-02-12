@@ -8,6 +8,7 @@ type Store = {
     id: string;
     name: string;
     category: string;
+    distance?: number;
 };
 
 // Fallback Data - Removed for real-data-only enforcement
@@ -86,10 +87,7 @@ export default function LunchRoulette() {
 
         // Filter stores by radius
         const inRange = stores.filter(s => {
-            // Assuming the API returns distance or we need to calculate it if missing
-            // But our service already calculates distance.
-            // If the store distance is within radius, it's valid.
-            return (s as any).distance <= radius;
+            return (s.distance || 0) <= radius;
         });
 
         if (inRange.length === 0) {
@@ -249,7 +247,7 @@ export default function LunchRoulette() {
 
                 <div className="grid grid-cols-2 gap-4 w-full relative z-10">
                     {radii.map((r) => {
-                        const countInRange = stores.filter(s => (s as any).distance <= r.value).length;
+                        const countInRange = stores.filter(s => (s.distance || 0) <= r.value).length;
 
                         return (
                             <button

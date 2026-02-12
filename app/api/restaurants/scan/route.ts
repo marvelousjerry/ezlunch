@@ -32,7 +32,8 @@ export async function GET(request: Request) {
                 uniqueStores.set(r.name, {
                     id: r.id,
                     name: r.name,
-                    category: r.category || '기타'
+                    category: r.category || '기타',
+                    distance: r.distance
                 });
             }
         });

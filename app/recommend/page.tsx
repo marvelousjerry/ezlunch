@@ -135,7 +135,7 @@ function RecommendContent() {
                     <p className="font-bold mb-2">오류가 발생했습니다</p>
                     <p>{error}</p>
                     <button
-                        onClick={handleSearch}
+                        onClick={() => handleSearch()}
                         className="mt-4 px-4 py-2 bg-white border border-red-200 rounded-lg text-sm hover:bg-red-50 font-medium"
                     >
                         다시 시도하기

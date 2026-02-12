@@ -21,7 +21,8 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, k
         return data.documents.map((place: any) => {
             // Kakao category_name looks like "음식점 > 한식 > 육류,고기 > 삼겹살"
             // We want a clean category for the roulette
-            const catParts = place.category_name.split(' > ');
+            const catName = place.category_name || '';
+            const catParts = catName.split(' > ');
             const category = catParts.length > 1 ? catParts[1] : (catParts[0] || '기타');
 
             return {
