@@ -1,5 +1,8 @@
-const KAKAO_API_KEY = process.env.KAKAO_API_KEY || 'f1d6aa2f91be83e995af7044e30ccd3f';
-console.log(`[RestaurantService] Using API Key starting with: ${KAKAO_API_KEY.substring(0, 4)}...`);
+const KAKAO_API_KEY = process.env.KAKAO_API_KEY;
+if (!KAKAO_API_KEY) {
+    console.error('[RestaurantService] CRITICAL: KAKAO_API_KEY is not defined in environment variables.');
+}
+console.log(`[RestaurantService] Initialized. Key available: ${!!KAKAO_API_KEY}`);
 
 async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, keyword: string = '맛집') {
     try {
