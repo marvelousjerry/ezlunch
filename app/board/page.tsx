@@ -16,8 +16,10 @@ interface Post {
 export default function BoardPage() {
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
-    const [formData, setFormData] = useState({ title: '', artist: '', content: '' });
+    const [formData, setFormData] = useState({ title: '', artist: '', content: '', password: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const [editingPost, setEditingPost] = useState<Post | null>(null);
 
     useEffect(() => {
         fetchPosts();
@@ -47,13 +49,72 @@ export default function BoardPage() {
             });
 
             if (res.ok) {
-                setFormData({ title: '', artist: '', content: '' });
+                setFormData({ title: '', artist: '', content: '', password: '' });
                 fetchPosts();
+            } else {
+                const err = await res.json();
+                alert(err.error || '등록에 실패했습니다.');
             }
         } catch (error) {
             console.error('Failed to submit post', error);
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleDelete = async (post: Post) => {
+        const password = prompt('비밀번호를 입력해주세요.');
+        if (!password) return;
+
+        try {
+            const res = await fetch(`/api/posts?id=${post.id}&password=${password}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                alert('삭제되었습니다.');
+                fetchPosts();
+            } else {
+                const err = await res.json();
+                alert(err.error || '삭제에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('Delete failed', error);
+        }
+    };
+
+    const handleEdit = async (post: Post) => {
+        const password = prompt('비밀번호를 입력해주세요.');
+        if (!password) return;
+
+        const newTitle = prompt('새 노래 제목', post.title);
+        const newArtist = prompt('새 가수 이름', post.artist);
+        const newContent = prompt('새 코멘트', post.content);
+
+        if (newTitle === null || newArtist === null) return;
+
+        try {
+            const res = await fetch('/api/posts', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: post.id,
+                    title: newTitle,
+                    artist: newArtist,
+                    content: newContent,
+                    password: password
+                }),
+            });
+
+            if (res.ok) {
+                alert('수정되었습니다.');
+                fetchPosts();
+            } else {
+                const err = await res.json();
+                alert(err.error || '수정 결과: 실패');
+            }
+        } catch (error) {
+            console.error('Update failed', error);
         }
     };
 
@@ -78,7 +139,7 @@ export default function BoardPage() {
                     함께 듣고 싶은 노래 추천
                 </h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-500 ml-1">노래 제목</label>
                             <input
@@ -98,6 +159,18 @@ export default function BoardPage() {
                                 value={formData.artist}
                                 onChange={(e) => setFormData({ ...formData, artist: e.target.value })}
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 ml-1">비밀번호 (4자리)</label>
+                            <input
+                                type="password"
+                                maxLength={4}
+                                placeholder="0000"
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                                 required
                             />
                         </div>
@@ -139,11 +212,18 @@ export default function BoardPage() {
                 ) : (
                     <div className="grid gap-4 md:grid-cols-2">
                         {posts.map((post) => (
-                            <div key={post.id} className="bg-white p-5 rounded-[1.25rem] shadow-sm border border-orange-50 hover:shadow-md hover:shadow-orange-100/50 transition-all group flex gap-4 items-start">
-                                {/* Thumbnail Placeholder (Simulated logic would go here) */}
+                            <div key={post.id} className="bg-white p-5 rounded-[1.25rem] shadow-sm border border-orange-50 hover:shadow-md hover:shadow-orange-100/50 transition-all group flex gap-4 items-start relative">
+                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleEdit(post)} className="p-1.5 text-gray-400 hover:text-blue-500 bg-gray-50 rounded-lg transition-colors">
+                                        <span className="text-[10px] font-bold">수정</span>
+                                    </button>
+                                    <button onClick={() => handleDelete(post)} className="p-1.5 text-gray-400 hover:text-red-500 bg-gray-50 rounded-lg transition-colors">
+                                        <span className="text-[10px] font-bold">삭제</span>
+                                    </button>
+                                </div>
                                 <div className="w-24 h-24 bg-gray-200 rounded-xl flex-shrink-0 overflow-hidden relative group-hover:scale-105 transition-transform">
                                     <img
-                                        src={`https://img.youtube.com/vi/${post.id.split('-')[0]}/0.jpg`} // Assuming Mock ID is loosely based on timestamp, this won't work for simulation. Using placeholder.
+                                        src={`https://img.youtube.com/vi/${post.id}/0.jpg`}
                                         onError={(e) => {
                                             (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${post.artist}&background=random`
                                         }}
@@ -155,7 +235,7 @@ export default function BoardPage() {
 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-start mb-1">
-                                        <h3 className="font-bold text-slate-900 text-lg group-hover:text-primary transition-colors truncate">{post.title}</h3>
+                                        <h3 className="font-bold text-slate-900 text-lg group-hover:text-primary transition-colors truncate pr-16">{post.title}</h3>
                                         <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">
                                             {new Date(post.createdAt).toLocaleDateString()}
                                         </span>

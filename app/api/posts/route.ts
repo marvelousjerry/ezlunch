@@ -36,7 +36,7 @@ async function searchYouTubeVideoId(query: string): Promise<string | null> {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { title, artist, content } = body;
+        const { title, artist, content, password } = body;
 
         if (!title || !artist) {
             return NextResponse.json({ error: 'Title and artist are required' }, { status: 400 });
@@ -47,11 +47,12 @@ export async function POST(request: Request) {
 
         const newPost = await prisma.post.create({
             data: {
-                id: videoId || undefined, // undefined lets Prisma use default(cuid()) if not found
+                id: videoId || undefined,
                 title,
                 artist,
                 content: content || '',
-                author: '익명'
+                author: '익명',
+                password: password || '0000'
             }
         });
 
@@ -66,20 +67,73 @@ export async function DELETE(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
+        const password = searchParams.get('password');
+        const isAdmin = searchParams.get('admin') === 'true'; // Admin bypass
 
         if (!id) {
             return NextResponse.json({ error: 'ID is required' }, { status: 400 });
         }
 
+        // Get post to check password
+        const post = await prisma.post.findUnique({
+            where: { id }
+        });
+
+        if (!post) {
+            return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+        }
+
+        // Verify password if not admin
+        if (!isAdmin && post.password !== password) {
+            return NextResponse.json({ error: '비밀번호가 일치하지 않습니다.' }, { status: 403 });
+        }
+
         await prisma.post.delete({
-            where: {
-                id: id
-            }
+            where: { id }
         });
 
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Failed to delete post:', error);
         return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });
+    }
+}
+
+export async function PATCH(request: Request) {
+    try {
+        const body = await request.json();
+        const { id, title, artist, content, password, admin } = body;
+
+        if (!id) {
+            return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+        }
+
+        // Get post to check password
+        const post = await prisma.post.findUnique({
+            where: { id }
+        });
+
+        if (!post) {
+            return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+        }
+
+        // Verify password if not admin
+        if (admin !== true && post.password !== password) {
+            return NextResponse.json({ error: '비밀번호가 일치하지 않습니다.' }, { status: 403 });
+        }
+
+        const updatedPost = await prisma.post.update({
+            where: { id },
+            data: {
+                title: title !== undefined ? title : post.title,
+                artist: artist !== undefined ? artist : post.artist,
+                content: content !== undefined ? content : post.content,
+            }
+        });
+
+        return NextResponse.json(updatedPost);
+    } catch (error) {
+        console.error('Failed to update post:', error);
+        return NextResponse.json({ error: 'Failed to update post' }, { status: 500 });
     }
 }

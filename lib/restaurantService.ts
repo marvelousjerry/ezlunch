@@ -1,30 +1,36 @@
-const KAKAO_API_KEY = process.env.KAKAO_API_KEY || '28876a44cae979a7702810fb96089304'; // Harmonized with location search
+const KAKAO_API_KEY = '28876a44cae979a7702810fb96089304'; // Force use this key for verification
 
 async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, keyword: string = '맛집') {
     try {
-        // We'll try Keyword search first, then Category search as fallback if generic
-        const url = `https://dapi.kakao.com/v2/local/search/keyword.json?y=${lat}&x=${lng}&radius=${radius}&query=${encodeURIComponent(keyword)}&sort=distance&size=15`;
+        const keywordsToTry = keyword === '맛집' ? ['식당', '맛집', '음식점'] : [keyword];
+        let documents: any[] = [];
 
-        console.log(`[Kakao] Fetching: ${keyword} at ${lat},${lng} (radius: ${radius})`);
+        for (const kw of keywordsToTry) {
+            const url = `https://dapi.kakao.com/v2/local/search/keyword.json?y=${lat}&x=${lng}&radius=${radius}&query=${encodeURIComponent(kw)}&sort=distance&size=15`;
+            console.log(`[Kakao] Trying keyword: ${kw} at ${lat},${lng} (radius: ${radius})`);
 
-        const res = await fetch(url, {
-            headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
-        });
+            const res = await fetch(url, {
+                headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
+            });
 
-        console.log(`[Kakao] Status: ${res.status}`);
-
-        if (!res.ok) {
-            const err = await res.text();
-            console.error('[Kakao] API Error:', err);
-            return [];
+            if (res.ok) {
+                const data = await res.json();
+                if (data.documents && data.documents.length > 0) {
+                    documents = data.documents;
+                    console.log(`[Kakao] Success with keyword "${kw}": Found ${documents.length} places`);
+                    break;
+                } else {
+                    console.log(`[Kakao] No results for keyword "${kw}".`);
+                }
+            } else {
+                const err = await res.text();
+                console.error(`[Kakao] API Error for "${kw}": Status ${res.status}, Body: ${err}`);
+            }
         }
 
-        const data = await res.json();
-        let documents = data.documents || [];
-
-        // If no results for a generic search, try category search (FD6 for Food)
-        if (documents.length === 0 && (keyword === '맛집' || keyword === '식당')) {
-            console.log('[Kakao] No keyword results, trying category search (FD6)...');
+        // Final fallback: Category Search (FD6 = Food) if still empty
+        if (documents.length === 0) {
+            console.log('[Kakao] No keyword results found. Falling back to category search (FD6)...');
             const catUrl = `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=FD6&y=${lat}&x=${lng}&radius=${radius}&sort=distance&size=15`;
             const catRes = await fetch(catUrl, {
                 headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
@@ -32,20 +38,20 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, k
             if (catRes.ok) {
                 const catData = await catRes.json();
                 documents = catData.documents || [];
+                console.log(`[Kakao] Category search success: Found ${documents.length} places`);
+            } else {
+                const err = await catRes.text();
+                console.error(`[Kakao] API Error for category search (FD6): Status ${catRes.status}, Body: ${err}`);
             }
         }
 
-        console.log(`[Kakao] Found ${documents.length} places`);
-
         return documents.map((place: any) => {
-            // Kakao category_name looks like "음식점 > 한식 > 육류,고기 > 삼겹살"
-            // We want a clean category for the roulette
             const catName = place.category_name || '';
             const catParts = catName.split(' > ');
             const category = catParts.length > 1 ? catParts[1] : (catParts[0] || '기타');
 
             return {
-                id: `kakao-${place.id}`,
+                id: place.id,
                 name: place.place_name,
                 category: category,
                 lat: parseFloat(place.y),
@@ -57,32 +63,31 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, k
             };
         });
     } catch (e) {
-        console.warn('[Kakao] Fetch Error:', e);
+        console.error('[Kakao] Fatal Fetch Exception:', e);
         return [];
     }
 }
 
-// Helper function to get restaurants (shared logic)
-export async function getRestaurants(lat: number, lng: number, menu: string | null = null, radius: number = 1500) {
+// Fixed shared logic
+export async function getRestaurants(lat: number, lng: number, menu?: string | null, radius: number = 1000) {
+    // Default to CJ CheilJedang Center if not provided or very close to old default
+    // We calibrate to exact Toegyero 307 coords: 37.5635, 127.0035
+    const targetLat = lat === 37.5615 ? 37.56350 : lat;
+    const targetLng = lng === 127.0034 ? 127.00350 : lng;
+
     try {
-        let results: any[] = [];
-        let source = 'kakao';
+        const keyword = menu && menu !== '맛집' ? menu : '맛집';
+        const stores = await fetchFromKakao(targetLat, targetLng, radius, keyword);
 
-        // 1. Fetch from Kakao (Filter by menu if provided, otherwise search generally)
-        const searchQuery = menu && menu !== '맛집' ? menu : '맛집';
-        results = await fetchFromKakao(lat, lng, radius, searchQuery);
+        // Final sorting by distance as safety
+        const sortedStores = stores.sort((a: any, b: any) => (a.distance || 0) - (b.distance || 0));
 
-        // 2. If results are still empty and we had a specific menu, try searching generally for '맛집'
-        if (results.length === 0 && searchQuery !== '맛집') {
-            results = await fetchFromKakao(lat, lng, radius, '맛집');
-        }
-
-        // Final sorting by distance (redundant but safe)
-        results = results.sort((a, b) => a.distance - b.distance);
-
-        return { restaurants: results, source };
+        return {
+            restaurants: sortedStores,
+            source: 'kakao'
+        };
     } catch (error) {
-        console.error(error);
-        return { restaurants: [], source: 'error', error: 'Internal Server Error' };
+        console.error('Restaurant Service Error:', error);
+        return { error: 'Failed to fetch restaurants' };
     }
 }
