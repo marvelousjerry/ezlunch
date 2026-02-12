@@ -10,7 +10,7 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, k
         let documents: any[] = [];
 
         for (const kw of keywordsToTry) {
-            const url = `https://dapi.kakao.com/v2/local/search/keyword.json?y=${lat}&x=${lng}&radius=${radius}&query=${encodeURIComponent(kw)}&sort=distance&size=15`;
+            const url = `https://dapi.kakao.com/v2/local/search/keyword.json?y=${lat}&x=${lng}&radius=${radius}&query=${encodeURIComponent(kw)}&sort=distance&size=45`;
             console.log(`[Kakao] Trying keyword: ${kw} at ${lat},${lng} (radius: ${radius})`);
 
             const res = await fetch(url, {
@@ -20,11 +20,9 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, k
             if (res.ok) {
                 const data = await res.json();
                 if (data.documents && data.documents.length > 0) {
-                    documents = data.documents;
-                    console.log(`[Kakao] Success with keyword "${kw}": Found ${documents.length} places`);
-                    break;
-                } else {
-                    console.log(`[Kakao] No results for keyword "${kw}".`);
+                    // Accumulate documents from all keywords
+                    documents = [...documents, ...data.documents];
+                    console.log(`[Kakao] Found ${data.documents.length} places for keyword "${kw}"`);
                 }
             } else {
                 const err = await res.text();
@@ -35,7 +33,7 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, k
         // Final fallback: Category Search (FD6 = Food) if still empty
         if (documents.length === 0) {
             console.log('[Kakao] No keyword results found. Falling back to category search (FD6)...');
-            const catUrl = `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=FD6&y=${lat}&x=${lng}&radius=${radius}&sort=distance&size=15`;
+            const catUrl = `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=FD6&y=${lat}&x=${lng}&radius=${radius}&sort=distance&size=45`;
             const catRes = await fetch(catUrl, {
                 headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
             });
@@ -49,7 +47,15 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, k
             }
         }
 
-        return documents.map((place: any) => {
+        // Deduplicate using a Map with id as key
+        const uniqueDocs = new Map();
+        documents.forEach(doc => {
+            if (!uniqueDocs.has(doc.id)) {
+                uniqueDocs.set(doc.id, doc);
+            }
+        });
+
+        return Array.from(uniqueDocs.values()).map((place: any) => {
             const catName = place.category_name || '';
             const catParts = catName.split(' > ');
             const category = catParts.length > 1 ? catParts[1] : (catParts[0] || '기타');
