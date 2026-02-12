@@ -66,8 +66,8 @@ export default function LunchRoulette() {
         setCurrentCoords({ lat: latitude, lng: longitude });
 
         try {
-            // Scan 2000m range as default
-            const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=2000&t=${Date.now()}`);
+            // Scan 3000m range to ensure we find at least 60+ stores as requested
+            const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&t=${Date.now()}`);
             const data = await res.json();
 
             if (data.stores) {
@@ -77,7 +77,7 @@ export default function LunchRoulette() {
                 setSelectedCategories(uniqueCats);
                 setStep('category');
             } else {
-                alert('주변 식당을 찾을 수 없습니다.');
+                alert('주변 식당을 충분히 찾을 수 없습니다.');
             }
         } catch (error) {
             console.error('Initial scan failed', error);
@@ -173,7 +173,6 @@ export default function LunchRoulette() {
     if (step === 'intro') {
         return (
             <div className="w-full max-w-[30rem] mx-auto p-12 flex flex-col items-center justify-center min-h-[480px] bg-white rounded-[3rem] shadow-2xl shadow-orange-100/50 border border-orange-50 relative overflow-hidden animate-fade-in">
-                {/* Decorative Elements */}
                 <div className="absolute top-0 right-0 -mr-20 -mt-20 w-56 h-56 bg-orange-50 rounded-full blur-3xl opacity-60"></div>
 
                 <div className="mb-10 w-28 h-28 bg-gradient-to-br from-orange-400 to-orange-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-orange-200 rotate-6 transform hover:rotate-0 transition-transform duration-500 cursor-pointer">
@@ -183,8 +182,8 @@ export default function LunchRoulette() {
                 <div className="text-center space-y-4 mb-12 relative z-10">
                     <h2 className="text-4xl font-black text-slate-900 tracking-tighter">오늘 뭐 먹지?</h2>
                     <p className="text-slate-500 font-medium leading-relaxed break-keep px-4">
-                        <span className="text-orange-600 font-bold">회사(제일제당 센터)</span> 주변의<br />
-                        맛있는 식당들을 찾아보러 갈까요?
+                        주변의 맛있는 식당들을<br />
+                        빠르게 찾아보러 갈까요?
                     </p>
                 </div>
 
@@ -210,27 +209,33 @@ export default function LunchRoulette() {
                     <h2 className="text-2xl font-black text-slate-800">카테고리 선택</h2>
                     <div className="w-10"></div>
                 </div>
+
                 <div className="flex items-center justify-between mb-4 px-1 text-sm font-bold">
                     <p className="text-slate-500">주변 <span className="text-primary">{stores.length}곳</span> 발견!</p>
                     <button onClick={toggleAllCategories} className="text-orange-600 hover:underline">
                         {selectedCategories.length === categories.length ? '전체 해제' : '전체 선택'}
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto pr-1 mb-8 max-h-[300px]">
-                    <div className="grid grid-cols-2 gap-3">
+
+                {/* Denser Chip Layout to minimize scrolling */}
+                <div className="flex-1 overflow-y-auto pr-1 mb-8 custom-scrollbar">
+                    <div className="flex flex-wrap gap-2.5">
                         {categories.map((cat) => (
                             <button
                                 key={cat}
                                 onClick={() => toggleCategory(cat)}
-                                className={`p-4 rounded-2xl font-bold text-sm transition-all border-2 flex flex-col items-center gap-2 ${selectedCategories.includes(cat) ? 'bg-orange-50 border-primary text-primary shadow-inner' : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-50'
+                                className={`px-4 py-3 rounded-xl font-bold text-sm transition-all border-2 flex items-center gap-2 ${selectedCategories.includes(cat)
+                                    ? 'bg-orange-50 border-primary text-primary shadow-sm'
+                                    : 'bg-slate-50 border-slate-50 text-slate-500 hover:border-slate-200'
                                     }`}
                             >
-                                <span className="text-xl">{cat === '전체' ? '🥘' : '🍴'}</span>
+                                <span>{selectedCategories.includes(cat) ? '✅' : '🍴'}</span>
                                 {cat}
                             </button>
                         ))}
                     </div>
                 </div>
+
                 <button
                     onClick={goToRoulette}
                     disabled={selectedCategories.length === 0}
@@ -292,7 +297,7 @@ export default function LunchRoulette() {
                     disabled={isSpinning}
                     className="w-full py-5 bg-gradient-to-b from-orange-400 to-orange-600 text-white rounded-2xl font-black text-xl shadow-xl shadow-orange-200 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                    <Shuffle className={`w-6 h-6 ${isSpinning ? 'animate-spin' : ''}`} />
+                    <Shuffle className="w-6 h-6" />
                     {isSpinning ? 'G O !' : 'LUNCH SPIN!'}
                 </button>
             </div>

@@ -12,9 +12,8 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 2000, k
     let allDocuments: any[] = [];
 
     try {
-        // We'll try up to 3 pages to get up to 45 results (15 per page)
-        // This is more reliable than merging keywords which can be messy
-        const pages = [1, 2, 3];
+        // We'll try up to 4 pages to get up to 60 results (15 per page)
+        const pages = [1, 2, 3, 4];
 
         for (const page of pages) {
             const url = `https://dapi.kakao.com/v2/local/search/keyword.json?y=${lat}&x=${lng}&radius=${radius}&query=${encodeURIComponent(keyword)}&sort=distance&size=15&page=${page}`;
