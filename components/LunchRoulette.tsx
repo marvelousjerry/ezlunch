@@ -67,8 +67,8 @@ export default function LunchRoulette() {
         setCurrentCoords({ lat: latitude, lng: longitude });
 
         try {
-            // Scan maximum range 3000m once
-            const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000`);
+            // Scan maximum range 3000m once with cache-busting
+            const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&t=${Date.now()}`);
             const data = await res.json();
 
             if (data.stores) {
