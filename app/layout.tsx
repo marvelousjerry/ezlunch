@@ -3,8 +3,8 @@ import './globals.css';
 import Header from '@/components/Header';
 
 export const metadata: Metadata = {
-  title: 'EzLunch',
-  description: '오늘 점심 뭐 먹지?',
+  title: '오늘 뭐 먹지?',
+  description: '직장인 점심 메뉴 추천 해결사',
 };
 
 export default function RootLayout({
