@@ -53,6 +53,8 @@ export default function LunchRoulette() {
     const [categories, setCategories] = useState<string[]>([]);
     const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
+    const [selectedRadius, setSelectedRadius] = useState<number>(1000);
+
     // Reset everything to start over
     const resetFlow = () => {
         setStep('intro');
@@ -66,81 +68,37 @@ export default function LunchRoulette() {
         setMenuFilter('');
     };
 
-    const scanNearbyStores = async (keyword: string = '') => {
-        if (!navigator.geolocation) {
-            console.error("Geolocation not supported");
-            return;
-        }
-
+    const scanNearbyStores = async (radius: number) => {
+        setSelectedRadius(radius);
         setIsScanning(true);
         setStores([]);
 
+        // Default location: 서울특별시 중구 퇴계로 307 (CJ제일제당 센터)
+        const latitude = 37.5615;
+        const longitude = 127.0034;
+        setCurrentCoords({ lat: latitude, lng: longitude });
+
         try {
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    const { latitude, longitude } = position.coords;
-                    setCurrentCoords({ lat: latitude, lng: longitude });
+            const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=${radius}`);
+            const data = await res.json();
 
-                    // Reverse Geocoding for User Feedback
-                    try {
-                        const addrRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
-                        const addrData = await addrRes.json();
-                        if (addrData.display_name) {
-                            alert(`현재 위치 확인: ${addrData.display_name.split(',').slice(0, 3).join(' ')} 근처`);
-                        }
-                    } catch (e) {
-                        console.error("Address fetch failed", e);
-                    }
+            if (data.stores && data.stores.length > 0) {
+                setStores(data.stores);
 
-                    const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&menu=${keyword}`);
-                    const data = await res.json();
+                // Extract Categories
+                const uniqueCats = Array.from(new Set(data.stores.map((s: Store) => s.category))).filter(Boolean) as string[];
+                setCategories(uniqueCats);
+                setSelectedCategories(uniqueCats); // Default select all
 
-                    if (data.stores && data.stores.length > 0) {
-                        setStores(data.stores);
-
-                        // Check source for warning
-                        if (data.source && data.source.includes('mock')) {
-                            alert('⚠️ 주의: 현재 위치 주변에 데이터가 부족하여 가상(예시) 식당 정보가 표시됩니다.');
-                        }
-
-                        // Extract Categories
-                        const uniqueCats = Array.from(new Set(data.stores.map((s: Store) => s.category))).filter(Boolean) as string[];
-                        setCategories(uniqueCats);
-                        setSelectedCategories(uniqueCats); // Default select all
-
-                        // Move to next step
-                        setStep('category');
-                    } else {
-                        alert('주변에 식당이 없습니다. 범위를 넓히거나 직접 검색해보세요.');
-                        // Fallback to default search if GPS returns nothing
-                    }
-                    setIsScanning(false);
-                },
-                (error) => {
-                    console.error("Location error:", error);
-                    setIsScanning(false);
-                    switch (error.code) {
-                        case error.PERMISSION_DENIED:
-                            alert('위치 정보 제공을 허용해주세요.');
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            alert('위치 정보를 가져올 수 없습니다. GPS 신호를 확인해주세요.');
-                            break;
-                        case error.TIMEOUT:
-                            alert('위치 정보 요청 시간이 초과되었습니다.');
-                            break;
-                        default:
-                            alert('위치 정보를 가져오는 중 오류가 발생했습니다.');
-                    }
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
-            );
+                // Move to next step
+                setStep('category');
+            } else {
+                alert('주변에 식당이 없습니다. 범위를 넓혀보세요.');
+            }
         } catch (error) {
             console.error(error);
+            alert('식당 정보를 가져오는 중 오류가 발생했습니다.');
+        } finally {
             setIsScanning(false);
         }
     };
@@ -248,123 +206,65 @@ export default function LunchRoulette() {
     };
 
     // --------------------------------------------------------------------------------
-    // RENDER: PHASE 1 - INTRO / SCAN
+    // RENDER: PHASE 1 - RADIUS SELECTION
     // --------------------------------------------------------------------------------
     if (step === 'intro') {
-        const [locationSearch, setLocationSearch] = useState('');
-        const [isSearching, setIsSearching] = useState(false);
-
-        const searchLocation = async () => {
-            if (!locationSearch.trim()) {
-                alert('검색할 위치를 입력해주세요.');
-                return;
-            }
-
-            setIsSearching(true);
-            try {
-                // Using our server-side Kakao proxy
-                const res = await fetch(`/api/location/search?q=${encodeURIComponent(locationSearch)}`);
-                const data = await res.json();
-
-                if (data.documents && data.documents.length > 0) {
-                    const place = data.documents[0];
-                    const lat = parseFloat(place.y);
-                    const lon = parseFloat(place.x);
-
-                    setCurrentCoords({ lat, lng: lon });
-
-                    // User feedback
-                    alert(`${place.place_name} 주변 맛집을 검색합니다.`);
-
-                    setIsScanning(true);
-                    const scanRes = await fetch(`/api/restaurants/scan?lat=${lat}&lng=${lon}&menu=`);
-                    const scanData = await scanRes.json();
-
-                    if (scanData.stores && scanData.stores.length > 0) {
-                        setStores(scanData.stores);
-                        const uniqueCats = Array.from(new Set(scanData.stores.map((s: Store) => s.category))).filter(Boolean) as string[];
-                        setCategories(uniqueCats);
-                        setSelectedCategories(uniqueCats);
-                        setStep('category');
-                    } else {
-                        alert('해당 위치 주변에 식당이 없습니다.');
-                    }
-                    setIsScanning(false);
-                } else {
-                    alert('검색 결과를 찾을 수 없습니다. (업체명이나 주소를 정확히 입력해주세요)');
-                }
-            } catch (error) {
-                console.error('Location search error:', error);
-                alert('위치 검색 중 오류가 발생했습니다.');
-            } finally {
-                setIsSearching(false);
-            }
-        };
+        const radii = [
+            { value: 500, label: '산책 겸 500m' },
+            { value: 1000, label: '가뿐한 1km' },
+            { value: 1500, label: '넉넉한 1.5km' },
+            { value: 2000, label: '도전! 2km' },
+            { value: 2500, label: '원정 미식 2.5km' },
+            { value: 3000, label: '대장정 3km' }
+        ];
 
         return (
-            <div className="w-full max-w-[28rem] mx-auto p-6 flex flex-col items-center justify-center min-h-[400px] bg-white rounded-3xl shadow-xl shadow-orange-100/20 border border-orange-100">
-                <div className="mb-6 w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center animate-pulse-slow">
-                    <MapPin className="w-10 h-10 text-orange-500" />
+            <div className="w-full max-w-[30rem] mx-auto p-10 flex flex-col items-center justify-center min-h-[450px] bg-white rounded-[2.5rem] shadow-2xl shadow-orange-100/50 border border-orange-50 relative overflow-hidden">
+                {/* Decorative background element */}
+                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 bg-orange-50 rounded-full blur-3xl opacity-50"></div>
+
+                <div className="mb-8 w-24 h-24 bg-gradient-to-br from-orange-400 to-orange-600 rounded-3xl flex items-center justify-center shadow-lg shadow-orange-200 rotate-6 transform transition-transform hover:rotate-0 duration-300">
+                    <MapPin className="w-12 h-12 text-white" />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-800 mb-2">맛집 찾기</h2>
-                <p className="text-gray-500 text-center mb-8 break-keep">
-                    서울특별시 중구 퇴계로 307 (기본)<br />또는 원하는 지역을 검색해보세요.
+
+                <h2 className="text-3xl font-black text-slate-800 mb-3 tracking-tight">어디까지 가실래요?</h2>
+                <p className="text-slate-500 text-center mb-10 break-keep font-medium leading-relaxed">
+                    <span className="text-orange-600 font-bold">퇴계로 307</span>을 기준으로<br />
+                    맛있는 식당을 찾아볼 반경을 선택해 주세요.
                 </p>
 
-                <div className="w-full space-y-4">
-                    <button
-                        onClick={() => scanNearbyStores('')}
-                        disabled={isScanning || isSearching}
-                        className="w-full py-4 text-lg font-bold text-white bg-orange-500 rounded-2xl hover:bg-orange-600 active:scale-95 transition-all shadow-lg shadow-orange-200 flex items-center justify-center gap-2"
-                    >
-                        {isScanning ? (
-                            <>
-                                <ScanSearch className="w-6 h-6 animate-pulse" />
-                                <span className="w-24 text-left">스캔 중{scanDots}</span>
-                            </>
-                        ) : (
-                            <>
-                                <ScanSearch className="w-6 h-6" />
-                                <span>내 주변 맛집 찾기</span>
-                            </>
-                        )}
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                        <div className="flex-1 h-px bg-gray-200"></div>
-                        <span className="text-xs text-gray-400 font-semibold">또는</span>
-                        <div className="flex-1 h-px bg-gray-200"></div>
-                    </div>
-
-                    <div className="space-y-3">
-                        <input
-                            type="text"
-                            placeholder="예: 이지케어텍, 강남역, 상계동"
-                            value={locationSearch}
-                            onChange={(e) => setLocationSearch(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && searchLocation()}
-                            disabled={isScanning || isSearching}
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all placeholder:text-gray-400"
-                        />
+                <div className="grid grid-cols-2 gap-4 w-full relative z-10">
+                    {radii.map((r) => (
                         <button
-                            onClick={searchLocation}
-                            disabled={isScanning || isSearching}
-                            className="w-full py-3 text-base font-bold text-slate-700 bg-white border-2 border-slate-200 rounded-xl hover:bg-slate-50 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2"
+                            key={r.value}
+                            onClick={() => scanNearbyStores(r.value)}
+                            disabled={isScanning}
+                            className={`group py-5 rounded-[1.5rem] font-bold transition-all flex flex-col items-center justify-center border-2 ${isScanning
+                                ? 'bg-gray-50 border-gray-100 text-gray-300'
+                                : 'bg-white border-orange-50 text-slate-700 hover:border-orange-500 hover:bg-orange-50 hover:text-orange-600 active:scale-95 shadow-sm hover:shadow-orange-100'
+                                }`}
                         >
-                            {isSearching ? (
-                                <>
-                                    <span className="animate-spin">↻</span>
-                                    <span>검색 중...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Search className="w-5 h-5" />
-                                    <span>지역/업체명 검색</span>
-                                </>
-                            )}
+                            <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 group-hover:text-orange-400 mb-1 transition-colors">Distance</span>
+                            <span className="text-lg">{r.label.split(' ')[0]}</span>
+                            <span className="text-2xl font-black mt-1 leading-none">
+                                {r.value >= 1000 ? `${r.value / 1000}km` : `${r.value}m`}
+                            </span>
                         </button>
-                    </div>
+                    ))}
                 </div>
+
+                {isScanning && (
+                    <div className="absolute inset-0 z-20 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-4 animate-enter">
+                        <div className="relative">
+                            <div className="w-16 h-16 border-4 border-orange-100 border-t-orange-500 rounded-full animate-spin"></div>
+                            <ScanSearch className="w-6 h-6 text-orange-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-slate-800 font-black text-xl mb-1">식당 스캔 중</p>
+                            <p className="text-orange-500 font-bold tracking-widest">{scanDots}</p>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }

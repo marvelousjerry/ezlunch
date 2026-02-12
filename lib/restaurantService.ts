@@ -82,7 +82,7 @@ async function fetchFromOSMWithRetry(lat: number, lng: number) {
 }
 
 // Helper function to get restaurants (shared logic)
-export async function getRestaurants(lat: number, lng: number, menu: string | null = null) {
+export async function getRestaurants(lat: number, lng: number, menu: string | null = null, radius: number = 1500) {
     try {
         let results: any[] = [];
         let source = 'mock';
@@ -94,7 +94,8 @@ export async function getRestaurants(lat: number, lng: number, menu: string | nu
 
         // 2. OpenStreetMap (OSM)
         if (results.length === 0) {
-            const osmResults = await fetchFromOSMWithRetry(lat, lng);
+            // Use the specific radius requested by the user
+            const osmResults = await fetchFromOSM(lat, lng, radius);
             if (osmResults.length > 0) {
                 results = osmResults;
                 source = 'osm';

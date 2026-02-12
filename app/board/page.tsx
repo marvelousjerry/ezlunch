@@ -65,7 +65,7 @@ export default function BoardPage() {
                         <ArrowLeft className="w-6 h-6 text-slate-600 group-hover:text-primary transition-colors" />
                     </Link>
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-                        <span className="text-primary">플레이</span>리스트
+                        노래 추천 <span className="text-primary">게시판</span>
                     </h1>
                 </div>
             </div>

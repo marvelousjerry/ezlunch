@@ -5,6 +5,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const lat = searchParams.get('lat');
     const lng = searchParams.get('lng');
+    const radiusStr = searchParams.get('radius');
     const menu = searchParams.get('menu');
     const host = request.headers.get('host');
     const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
@@ -13,9 +14,11 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Location required' }, { status: 400 });
     }
 
+    const radius = radiusStr ? parseInt(radiusStr) : 1500;
+
     try {
         // 1. Call the logic directly to avoid self-fetch issues
-        const data = await getRestaurants(parseFloat(lat), parseFloat(lng), menu);
+        const data = await getRestaurants(parseFloat(lat), parseFloat(lng), menu, radius);
 
         if (data.error) throw new Error(data.error);
         const restaurants = data.restaurants || [];

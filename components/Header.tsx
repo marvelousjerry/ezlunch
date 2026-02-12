@@ -24,11 +24,8 @@ export default function Header() {
                         <Link href="/" className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${pathname === '/' ? 'bg-white text-[#FF8A3D] shadow-sm' : 'text-slate-600 hover:text-[#FF8A3D]'}`}>
                             홈
                         </Link>
-                        <Link href="/recommend" className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${pathname === '/recommend' ? 'bg-white text-[#FF8A3D] shadow-sm' : 'text-slate-600 hover:text-[#FF8A3D]'}`}>
-                            맛집 지도
-                        </Link>
                         <Link href="/board" className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${pathname === '/board' ? 'bg-white text-[#FF8A3D] shadow-sm' : 'text-slate-600 hover:text-[#FF8A3D]'}`}>
-                            플레이리스트
+                            노래 추천 게시판
                         </Link>
                     </nav>
 
