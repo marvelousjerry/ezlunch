@@ -48,22 +48,15 @@ export default function LunchRoulette() {
     const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
     const [selectedRadius, setSelectedRadius] = useState<number>(1000);
+    const [initialLoading, setInitialLoading] = useState(true);
 
-    // Reset everything to start over
-    const resetFlow = () => {
-        setStep('intro');
-        setStores([]);
-        setCategories([]);
-        setSelectedCategories([]);
-        setSelectedStore(null);
-        setSelectedPenalty(null);
-        setIsSpinning(false);
-        setIsPenalty(false);
-        setMenuFilter('');
-    };
+    // Auto-scan on mount (3km range to cover everything)
+    useEffect(() => {
+        initialScan();
+    }, []);
 
-    const scanNearbyStores = async (radius: number) => {
-        setSelectedRadius(radius);
+    const initialScan = async () => {
+        setInitialLoading(true);
         setIsScanning(true);
         setStores([]);
 
@@ -73,28 +66,55 @@ export default function LunchRoulette() {
         setCurrentCoords({ lat: latitude, lng: longitude });
 
         try {
-            const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=${radius}`);
+            // Scan maximum range 3000m once
+            const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000`);
             const data = await res.json();
 
-            if (data.stores && data.stores.length > 0) {
+            if (data.stores) {
                 setStores(data.stores);
-
-                // Extract Categories
-                const uniqueCats = Array.from(new Set(data.stores.map((s: Store) => s.category))).filter(Boolean) as string[];
-                setCategories(uniqueCats);
-                setSelectedCategories(uniqueCats); // Default select all
-
-                // Move to next step
-                setStep('category');
-            } else {
-                alert('주변에 식당이 없습니다. 범위를 넓혀보세요.');
             }
         } catch (error) {
-            console.error(error);
-            alert('식당 정보를 가져오는 중 오류가 발생했습니다.');
+            console.error('Initial scan failed', error);
         } finally {
             setIsScanning(false);
+            setInitialLoading(false);
         }
+    };
+
+    const selectRadiusAndProceed = (radius: number) => {
+        setSelectedRadius(radius);
+
+        // Filter stores by radius
+        const inRange = stores.filter(s => {
+            // Assuming the API returns distance or we need to calculate it if missing
+            // But our service already calculates distance.
+            // If the store distance is within radius, it's valid.
+            return (s as any).distance <= radius;
+        });
+
+        if (inRange.length === 0) {
+            alert('해당 반경 내에 식당이 없습니다. 다른 범위를 선택해주세요.');
+            return;
+        }
+
+        // Extract Categories from filtered stores
+        const uniqueCats = Array.from(new Set(inRange.map((s: any) => s.category))).filter(Boolean) as string[];
+        setCategories(uniqueCats);
+        setSelectedCategories(uniqueCats); // Default select all
+
+        // Move to next step
+        setStep('category');
+    };
+
+    // Keep resetFlow but adjust if needed
+    const resetFlow = () => {
+        setStep('intro');
+        // We keep 'stores' from initial load to avoid re-scanning
+        setSelectedStore(null);
+        setSelectedPenalty(null);
+        setIsSpinning(false);
+        setIsPenalty(false);
+        setMenuFilter('');
     };
 
     // Dot Animation Effect
@@ -228,23 +248,32 @@ export default function LunchRoulette() {
                 </p>
 
                 <div className="grid grid-cols-2 gap-4 w-full relative z-10">
-                    {radii.map((r) => (
-                        <button
-                            key={r.value}
-                            onClick={() => scanNearbyStores(r.value)}
-                            disabled={isScanning}
-                            className={`group py-5 rounded-[1.5rem] font-bold transition-all flex flex-col items-center justify-center border-2 ${isScanning
-                                ? 'bg-gray-50 border-gray-100 text-gray-300'
-                                : 'bg-white border-orange-50 text-slate-700 hover:border-orange-500 hover:bg-orange-50 hover:text-orange-600 active:scale-95 shadow-sm hover:shadow-orange-100'
-                                }`}
-                        >
-                            <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 group-hover:text-orange-400 mb-1 transition-colors">Distance</span>
-                            <span className="text-lg">{r.label.split(' ')[0]}</span>
-                            <span className="text-2xl font-black mt-1 leading-none">
-                                {r.value >= 1000 ? `${r.value / 1000}km` : `${r.value}m`}
-                            </span>
-                        </button>
-                    ))}
+                    {radii.map((r) => {
+                        const countInRange = stores.filter(s => (s as any).distance <= r.value).length;
+
+                        return (
+                            <button
+                                key={r.value}
+                                onClick={() => selectRadiusAndProceed(r.value)}
+                                disabled={initialLoading}
+                                className={`group py-5 rounded-[1.5rem] font-bold transition-all flex flex-col items-center justify-center border-2 ${initialLoading
+                                    ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
+                                    : 'bg-white border-orange-50 text-slate-700 hover:border-orange-500 hover:bg-orange-50 hover:text-orange-600 active:scale-95 shadow-sm hover:shadow-orange-100'
+                                    }`}
+                            >
+                                <span className="text-[10px] uppercase tracking-widest font-black text-gray-400 group-hover:text-orange-400 mb-1 transition-colors">Distance</span>
+                                <span className="text-lg">{r.label.split(' ')[0]}</span>
+                                <div className="flex items-baseline gap-1 mt-1">
+                                    <span className="text-2xl font-black leading-none">
+                                        {r.value >= 1000 ? `${r.value / 1000}km` : `${r.value}m`}
+                                    </span>
+                                    {(!initialLoading && stores.length > 0) && (
+                                        <span className="text-xs font-bold text-orange-500 animate-fade-in">{countInRange}곳</span>
+                                    )}
+                                </div>
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {isScanning && (
@@ -254,7 +283,7 @@ export default function LunchRoulette() {
                             <ScanSearch className="w-6 h-6 text-orange-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
                         </div>
                         <div className="text-center">
-                            <p className="text-slate-800 font-black text-xl mb-1">식당 스캔 중</p>
+                            <p className="text-slate-800 font-black text-xl mb-1">회사 주변 맛집 찾는 중</p>
                             <p className="text-orange-500 font-bold tracking-widest">{scanDots}</p>
                         </div>
                     </div>
