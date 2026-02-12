@@ -282,14 +282,21 @@ export default function LunchRoulette() {
             </div>
 
             <div className="w-full space-y-6">
-                <div className="flex justify-center gap-6">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4 accent-primary" checked={useRandomPenalty} onChange={(e) => setUseRandomPenalty(e.target.checked)} />
-                        <span className="text-xs font-bold text-slate-500">벌칙 10%</span>
+                <div className="flex justify-center gap-8 select-none">
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                        <div className={`relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out ${useRandomPenalty ? 'bg-orange-500' : 'bg-slate-200'}`}>
+                            <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${useRandomPenalty ? 'translate-x-6' : ''}`}></div>
+                        </div>
+                        <input type="checkbox" className="hidden" checked={useRandomPenalty} onChange={(e) => setUseRandomPenalty(e.target.checked)} />
+                        <span className={`text-sm font-bold transition-colors ${useRandomPenalty ? 'text-orange-600' : 'text-slate-400'}`}>벌칙 10%</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4 accent-primary" checked={avoidDuplicates} onChange={(e) => setAvoidDuplicates(e.target.checked)} />
-                        <span className="text-xs font-bold text-slate-500">중복 방지</span>
+
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                        <div className={`relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out ${avoidDuplicates ? 'bg-orange-500' : 'bg-slate-200'}`}>
+                            <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${avoidDuplicates ? 'translate-x-6' : ''}`}></div>
+                        </div>
+                        <input type="checkbox" className="hidden" checked={avoidDuplicates} onChange={(e) => setAvoidDuplicates(e.target.checked)} />
+                        <span className={`text-sm font-bold transition-colors ${avoidDuplicates ? 'text-orange-600' : 'text-slate-400'}`}>중복 방지</span>
                     </label>
                 </div>
                 <button
