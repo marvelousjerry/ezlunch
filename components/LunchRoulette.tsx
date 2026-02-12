@@ -42,7 +42,7 @@ export default function LunchRoulette() {
     const [isScanning, setIsScanning] = useState(false);
     const [scanDots, setScanDots] = useState('');
     const [menuFilter, setMenuFilter] = useState('');
-    const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number }>({ lat: 37.5615, lng: 127.0034 });
+    const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number }>({ lat: 37.5635, lng: 127.0035 });
 
     // Category & Filter State
     const [categories, setCategories] = useState<string[]>([]);
@@ -62,8 +62,8 @@ export default function LunchRoulette() {
         setStores([]);
 
         // Default location: 회사 (CJ제일제당 센터)
-        const latitude = 37.5615;
-        const longitude = 127.0034;
+        const latitude = 37.5635;
+        const longitude = 127.0035;
         setCurrentCoords({ lat: latitude, lng: longitude });
 
         try {
@@ -91,7 +91,7 @@ export default function LunchRoulette() {
         });
 
         if (inRange.length === 0) {
-            alert('해당 반경 내에 식당이 없습니다. 다른 범위를 선택해주세요.');
+            alert(`해당 반경 내에 식당이 없습니다. (현재 발견된 총 식당: ${stores.length}곳). 다른 범위를 선택해주세요.`);
             return;
         }
 

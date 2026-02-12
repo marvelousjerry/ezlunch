@@ -30,8 +30,41 @@ export default function AdminDashboard() {
     const handleDelete = async (id: string) => {
         if (!confirm('정말 삭제하시겠습니까?')) return;
 
-        await fetch(`/api/posts?id=${id}`, { method: 'DELETE' });
+        // Use admin=true bypass
+        await fetch(`/api/posts?id=${id}&admin=true`, { method: 'DELETE' });
         fetchPosts();
+    };
+
+    const handleEdit = async (post: Post) => {
+        const newTitle = prompt('노래 제목 수정', post.title);
+        const newArtist = prompt('가수명 수정', post.artist);
+        const newContent = prompt('코멘트 수정', post.content || '');
+
+        if (newTitle === null || newArtist === null) return;
+
+        try {
+            const res = await fetch('/api/posts', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: post.id,
+                    title: newTitle,
+                    artist: newArtist,
+                    content: newContent,
+                    admin: true // Admin bypass
+                }),
+            });
+
+            if (res.ok) {
+                alert('수정되었습니다.');
+                fetchPosts();
+            } else {
+                const err = await res.json();
+                alert(err.error || '수정에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('Update failed', error);
+        }
     };
 
     const handleLogout = async () => {
@@ -58,18 +91,27 @@ export default function AdminDashboard() {
                         <div className="space-y-4">
                             {posts.map((post) => (
                                 <div key={post.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                                    <div>
-                                        <h3 className="font-bold text-gray-800">{post.title}</h3>
-                                        <p className="text-sm text-gray-500">{post.artist} - {new Date(post.createdAt).toLocaleDateString()}</p>
-                                        {post.content && <p className="text-xs text-gray-400 mt-1">{post.content}</p>}
+                                    <div className="flex-1 min-w-0 pr-4">
+                                        <h3 className="font-bold text-gray-800 truncate">{post.title}</h3>
+                                        <p className="text-sm text-gray-500 truncate">{post.artist} - {new Date(post.createdAt).toLocaleDateString()}</p>
+                                        {post.content && <p className="text-xs text-gray-400 mt-1 line-clamp-1">{post.content}</p>}
                                     </div>
-                                    <button
-                                        onClick={() => handleDelete(post.id)}
-                                        className="p-2 text-red-500 hover:bg-red-100 rounded-full transition-colors"
-                                        title="삭제"
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleEdit(post)}
+                                            className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+                                            title="수정"
+                                        >
+                                            <Settings className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(post.id)}
+                                            className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                                            title="삭제"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                             {posts.length === 0 && (

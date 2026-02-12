@@ -1,4 +1,5 @@
-const KAKAO_API_KEY = '28876a44cae979a7702810fb96089304'; // Force use this key for verification
+const KAKAO_API_KEY = process.env.KAKAO_API_KEY || '28876a44cae979a7702810fb96089304';
+console.log(`[RestaurantService] Using API Key starting with: ${KAKAO_API_KEY.substring(0, 4)}...`);
 
 async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, keyword: string = '맛집') {
     try {
