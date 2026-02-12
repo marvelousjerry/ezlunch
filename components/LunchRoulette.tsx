@@ -34,6 +34,7 @@ export default function LunchRoulette() {
     // Options
     const [useRandomPenalty, setUseRandomPenalty] = useState(false);
     const [avoidDuplicates, setAvoidDuplicates] = useState(false);
+    const [history, setHistory] = useState<string[]>([]); // Recently selected store IDs
 
     // Data
     const [stores, setStores] = useState<Store[]>([]);
@@ -137,6 +138,7 @@ export default function LunchRoulette() {
         setIsPenalty(false);
         setStoreDetails(null);
         setReviews([]);
+        setHistory([]);
     };
 
     const toggleCategory = (cat: string) => {
@@ -166,6 +168,15 @@ export default function LunchRoulette() {
     const spin = () => {
         if (isSpinning) return;
         let candidates = stores.filter(s => selectedCategories.includes(s.category));
+
+        // Apply "Avoid Duplicates" if enabled
+        if (avoidDuplicates && history.length > 0 && history.length < candidates.length) {
+            const filtered = candidates.filter(c => !history.includes(c.id));
+            if (filtered.length > 0) {
+                candidates = filtered;
+            }
+        }
+
         if (candidates.length === 0) {
             alert('선택된 카테고리에 해당하는 식당이 없습니다.');
             return;
@@ -207,6 +218,12 @@ export default function LunchRoulette() {
                 setIsSpinning(false);
                 const finalStore = candidates[Math.floor(Math.random() * candidates.length)];
                 setSelectedStore(finalStore);
+
+                // Update History
+                setHistory(prev => {
+                    const next = [finalStore.id, ...prev];
+                    return next.slice(0, 5); // Keep last 5 selected
+                });
             }
         };
         animate();
@@ -420,7 +437,7 @@ export default function LunchRoulette() {
                             <div className={`relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out ${avoidDuplicates ? 'bg-orange-500' : 'bg-slate-200'}`}>
                                 <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${avoidDuplicates ? 'translate-x-6' : ''}`}></div>
                             </div>
-                            <input type="checkbox" className="hidden" checked={avoidDuplicates} onChange={(e) => setUseRandomPenalty(e.target.checked)} />
+                            <input type="checkbox" className="hidden" checked={avoidDuplicates} onChange={(e) => setAvoidDuplicates(e.target.checked)} />
                             <span className={`text-sm font-bold transition-colors ${avoidDuplicates ? 'text-orange-600' : 'text-slate-400'}`}>중복 방지</span>
                         </label>
                     </div>
