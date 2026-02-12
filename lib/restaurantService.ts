@@ -1,24 +1,43 @@
-const KAKAO_API_KEY = process.env.KAKAO_API_KEY || '64198d021c37d6e67926c86729227655'; // Use ENV or placeholder for now
+const KAKAO_API_KEY = process.env.KAKAO_API_KEY || '28876a44cae979a7702810fb96089304'; // Harmonized with location search
 
 async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, keyword: string = '맛집') {
     try {
-        // Kakao Search Category: FD6 (Food), CE7 (Cafe)
-        // We'll search for both or use Keyword search for flexibility
-        const url = `https://dapi.kakao.com/v2/local/search/keyword.json?y=${lat}&x=${lng}&radius=${radius}&query=${encodeURIComponent(keyword)}&sort=distance`;
+        // We'll try Keyword search first, then Category search as fallback if generic
+        const url = `https://dapi.kakao.com/v2/local/search/keyword.json?y=${lat}&x=${lng}&radius=${radius}&query=${encodeURIComponent(keyword)}&sort=distance&size=15`;
+
+        console.log(`[Kakao] Fetching: ${keyword} at ${lat},${lng} (radius: ${radius})`);
 
         const res = await fetch(url, {
-            headers: {
-                'Authorization': `KakaoAK ${KAKAO_API_KEY}`
-            }
+            headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
         });
 
+        console.log(`[Kakao] Status: ${res.status}`);
+
         if (!res.ok) {
-            console.error('Kakao API Error:', await res.text());
+            const err = await res.text();
+            console.error('[Kakao] API Error:', err);
             return [];
         }
 
         const data = await res.json();
-        return data.documents.map((place: any) => {
+        let documents = data.documents || [];
+
+        // If no results for a generic search, try category search (FD6 for Food)
+        if (documents.length === 0 && (keyword === '맛집' || keyword === '식당')) {
+            console.log('[Kakao] No keyword results, trying category search (FD6)...');
+            const catUrl = `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=FD6&y=${lat}&x=${lng}&radius=${radius}&sort=distance&size=15`;
+            const catRes = await fetch(catUrl, {
+                headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
+            });
+            if (catRes.ok) {
+                const catData = await catRes.json();
+                documents = catData.documents || [];
+            }
+        }
+
+        console.log(`[Kakao] Found ${documents.length} places`);
+
+        return documents.map((place: any) => {
             // Kakao category_name looks like "음식점 > 한식 > 육류,고기 > 삼겹살"
             // We want a clean category for the roulette
             const catName = place.category_name || '';
@@ -38,7 +57,7 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 1500, k
             };
         });
     } catch (e) {
-        console.warn('Kakao Fetch Error:', e);
+        console.warn('[Kakao] Fetch Error:', e);
         return [];
     }
 }
