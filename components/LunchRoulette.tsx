@@ -229,7 +229,7 @@ export default function LunchRoulette() {
                                     : 'bg-slate-50 border-slate-50 text-slate-500 hover:border-slate-200'
                                     }`}
                             >
-                                <span>{selectedCategories.includes(cat) ? '✅' : '🍴'}</span>
+                                <span>🍴</span>
                                 {cat}
                             </button>
                         ))}
