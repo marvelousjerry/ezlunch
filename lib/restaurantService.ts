@@ -187,10 +187,12 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
             // Try to scrape data from Kakao Place URL
             const res = await fetch(placeUrl, {
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'Referer': 'https://map.kakao.com/'
                 },
-                signal: AbortSignal.timeout(2000)
+                signal: AbortSignal.timeout(3000)
             });
 
             if (res.ok) {

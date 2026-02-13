@@ -312,10 +312,7 @@ export default function LunchRoulette() {
         <div className="flex flex-col items-center justify-start bg-white rounded-[2.5rem] shadow-xl w-full max-w-[32rem] mx-auto relative animate-fade-in overflow-hidden border border-orange-50">
 
             {/* Header / Top Controls */}
-            <div className="w-full px-6 pt-6 pb-2 flex justify-between items-center z-10 bg-white">
-                <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                    <span className="text-primary">🍴</span> 메뉴 선택
-                </h2>
+            <div className="w-full px-6 pt-6 pb-2 flex justify-end items-center z-10 bg-white">
                 <button
                     onClick={toggleAllCategories}
                     className="text-xs font-bold text-slate-400 hover:text-primary transition-colors bg-slate-50 px-3 py-1.5 rounded-full hover:bg-orange-50"
@@ -430,9 +427,15 @@ export default function LunchRoulette() {
                                                 className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
                                             />
                                         ) : (
-                                            <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50/50 text-orange-200">
-                                                <div className="text-6xl mb-2 grayscale opacity-50">🍽️</div>
-                                                <p className="text-xs font-bold text-orange-300">이미지 준비중</p>
+                                            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-orange-100 to-yellow-50 text-orange-300">
+                                                <div className="text-6xl mb-2 opacity-50 drop-shadow-sm">
+                                                    {selectedStore.category === '한식' ? '🍚' :
+                                                        selectedStore.category === '중식' ? '🥟' :
+                                                            selectedStore.category === '일식' ? '🍣' :
+                                                                selectedStore.category === '양식' ? '🍝' :
+                                                                    selectedStore.category === '치킨' ? '🍗' : '🍽️'}
+                                                </div>
+                                                <p className="text-xs font-bold text-orange-400/80">이미지 검색 실패</p>
                                             </div>
                                         )}
                                         <div className="absolute top-4 left-4">
@@ -457,8 +460,8 @@ export default function LunchRoulette() {
                                         </p>
 
                                         <div className="mt-4">
-                                            <Link href={`https://www.google.com/maps/search/${encodeURIComponent(selectedStore.name + ' ' + selectedStore.address)}`} target="_blank" className="block w-full py-3 bg-yellow-400 text-slate-900 rounded-xl font-bold text-center text-xs hover:bg-yellow-300 transition-all shadow-md flex items-center justify-center gap-1">
-                                                <Info className="w-3 h-3" /> 메뉴 전체 보기
+                                            <Link href={`https://www.google.com/maps/search/${encodeURIComponent(selectedStore.name + ' ' + selectedStore.address)}`} target="_blank" className="block w-full py-3 bg-slate-800 text-white rounded-xl font-bold text-center text-xs hover:bg-slate-700 transition-all shadow-md flex items-center justify-center gap-2">
+                                                <Info className="w-4 h-4" /> 매장 정보
                                             </Link>
                                         </div>
                                     </div>
