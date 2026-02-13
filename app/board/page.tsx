@@ -150,16 +150,16 @@ export default function BoardPage() {
     const normalPosts = posts.filter(p => p.likes < 10);
 
     const PostCard = ({ post }: { post: Post }) => (
-        <div key={post.id} className="bg-white p-5 rounded-[1.25rem] shadow-sm border border-orange-50 hover:shadow-md hover:shadow-orange-100/50 transition-all group flex gap-4 items-start relative">
-            <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                <button onClick={() => handleEdit(post)} className="px-2 py-1 text-blue-600 hover:text-white hover:bg-blue-500 bg-blue-50 border border-blue-100 rounded-md transition-all shadow-sm">
+        <div key={post.id} className="bg-white p-5 rounded-[1.25rem] shadow-sm border border-gray-200 hover:shadow-md transition-shadow relative flex gap-4 items-start">
+            <div className="absolute top-2 right-2 flex gap-1.5 z-10">
+                <button onClick={() => handleEdit(post)} className="px-2 py-1 text-blue-600 hover:bg-blue-50 bg-white border border-blue-100 rounded-md transition-colors shadow-sm">
                     <span className="text-[10px] font-bold">수정</span>
                 </button>
-                <button onClick={() => handleDelete(post)} className="px-2 py-1 text-red-600 hover:text-white hover:bg-red-500 bg-red-50 border border-red-100 rounded-md transition-all shadow-sm">
+                <button onClick={() => handleDelete(post)} className="px-2 py-1 text-red-600 hover:bg-red-50 bg-white border border-red-100 rounded-md transition-colors shadow-sm">
                     <span className="text-[10px] font-bold">삭제</span>
                 </button>
             </div>
-            <div className="w-24 h-24 bg-gray-200 rounded-xl flex-shrink-0 overflow-hidden relative group-hover:scale-105 transition-transform shadow-inner">
+            <div className="w-24 h-24 bg-gray-200 rounded-xl flex-shrink-0 overflow-hidden relative shadow-inner">
                 <img
                     src={`https://img.youtube.com/vi/${post.videoId}/0.jpg`}
                     onError={(e) => {
@@ -168,13 +168,12 @@ export default function BoardPage() {
                     alt="Album Art"
                     className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors"></div>
             </div>
 
             <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-bold text-slate-900 text-lg group-hover:text-primary transition-colors truncate pr-4">{post.title}</h3>
-                    <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2 opacity-100 group-hover:opacity-0 transition-opacity">
+                    <h3 className="font-bold text-slate-900 text-lg truncate pr-4">{post.title}</h3>
+                    <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">
                         {new Date(post.createdAt).toLocaleDateString()}
                     </span>
                 </div>
@@ -325,6 +324,7 @@ export default function BoardPage() {
                     </div>
                 )}
             </div>
+            <HeartExplosion active={heartEffect.active} x={heartEffect.x} y={heartEffect.y} />
         </div>
     );
 }

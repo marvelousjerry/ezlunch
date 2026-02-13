@@ -79,8 +79,8 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 2000, k
                 else if (category.includes('아시아')) category = '아시안';
                 else if (category.includes('패스트푸드')) category = '패스트푸드';
                 else if (category.includes('치킨')) category = '치킨';
-                else if (category.includes('카페') || category.includes('커피')) category = '카페/디저트';
-                else if (category.includes('술집') || category.includes('호프') || category.includes('와인') || category.includes('바')) category = '술집';
+                else if (category.includes('카페') || category.includes('커피') || category.includes('디저트') || category.includes('제과') || category.includes('베이커리') || category.includes('떡카페') || category.includes('차') || category.includes('간식') || category.includes('샐러드')) category = '카페/디저트';
+                else if (category.includes('술집') || category.includes('호프') || category.includes('와인') || category.includes('바') || category.includes('칵테일') || category.includes('포차')) category = '술집';
                 else category = category; // Keep original if specific enough, otherwise '기타'
             }
 

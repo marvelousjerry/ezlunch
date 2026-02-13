@@ -7,7 +7,7 @@ export default function HeartExplosion({ active, x, y }: { active: boolean; x: n
 
     return (
         <div
-            className="fixed pointer-events-none z-50 flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2"
+            className="fixed pointer-events-none z-[9999] flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2"
             style={{ left: x, top: y }}
         >
             <div className="relative">
