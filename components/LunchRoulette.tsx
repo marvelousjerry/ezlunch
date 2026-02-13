@@ -45,6 +45,9 @@ export default function LunchRoulette() {
     const [scanDots, setScanDots] = useState('');
     const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number }>({ lat: 37.5635, lng: 127.0035 });
 
+    // Slot Machine Animation State
+    const [currentCandidate, setCurrentCandidate] = useState<string>('오늘의 메뉴는?');
+
     // Store Details & Reviews
     const [storeDetails, setStoreDetails] = useState<{
         imageUrl: string | null;
@@ -202,6 +205,7 @@ export default function LunchRoulette() {
         setStep('roulette');
     };
 
+    // Spin Logic
     const spin = () => {
         if (isSpinning) return;
         let candidates = stores.filter(s => selectedCategories.includes(s.category));
@@ -219,11 +223,15 @@ export default function LunchRoulette() {
             return;
         }
 
+        // Random Penalty Logic (10%)
         if (useRandomPenalty && Math.random() < 0.1) {
             setIsSpinning(true);
             let duration = 0;
             const interval = setInterval(() => {
                 duration += 100;
+                // Slot Machine Text Effect
+                setCurrentCandidate(PENALTIES[Math.floor(Math.random() * PENALTIES.length)]);
+
                 if (duration > 2500) {
                     clearInterval(interval);
                     setIsSpinning(false);
@@ -231,7 +239,7 @@ export default function LunchRoulette() {
                     setSelectedPenalty(PENALTIES[Math.floor(Math.random() * PENALTIES.length)]);
                     setSelectedStore(null);
                 }
-            }, 100);
+            }, 80);
             return;
         }
 
@@ -242,31 +250,44 @@ export default function LunchRoulette() {
 
         let duration = 0;
         let speed = 50;
+        let intervalId: NodeJS.Timeout;
 
-        const animate = () => {
+        // Slot Machine Animation Loop
+        const runAnimation = () => {
+            // 1. visual update
             const randomStore = candidates[Math.floor(Math.random() * candidates.length)];
-            setSelectedStore(randomStore);
-            duration += speed;
+            setCurrentCandidate(randomStore.name);
 
+            duration += speed;
             if (duration < 2500) {
-                if (duration > 1500) speed += 20;
-                setTimeout(animate, speed);
+                if (duration > 1500) speed += 10; // Slow down
+                intervalId = setTimeout(runAnimation, speed);
             } else {
                 setIsSpinning(false);
                 const finalStore = candidates[Math.floor(Math.random() * candidates.length)];
                 setSelectedStore(finalStore);
+                setCurrentCandidate(finalStore.name);
 
                 // Update History
                 setHistory(prev => {
                     const next = [finalStore.id, ...prev];
-                    return next.slice(0, 5); // Keep last 5 selected
+                    return next.slice(0, 5);
                 });
             }
         };
-        animate();
+        runAnimation();
     };
 
-    // --- RENDER ---
+    // Re-Spin Logic (Instant Restart)
+    const reSpin = () => {
+        // Reset results but keep categories
+        setSelectedStore(null);
+        setSelectedPenalty(null);
+        setIsPenalty(false);
+        setStoreDetails(null);
+        // Trigger spin immediately
+        setTimeout(() => spin(), 0);
+    };
 
     // --- RENDER ---
 
@@ -303,7 +324,7 @@ export default function LunchRoulette() {
                 </button>
             </div>
 
-            {/* Category Grid (Always Visible) */}
+            {/* Category Grid */}
             <div className="w-full px-6 pb-6 pt-2">
                 <div className="flex flex-wrap gap-2">
                     {categories.map((cat) => (
@@ -336,7 +357,10 @@ export default function LunchRoulette() {
                     <div className="w-full flex-1 flex flex-col items-center justify-center gap-6 py-8">
                         <div className={`relative w-48 h-48 bg-white rounded-full flex items-center justify-center shadow-lg border-4 transition-all duration-300 ${isSpinning ? 'border-orange-400 animate-spin' : 'border-orange-100'}`}>
                             {isSpinning ? (
-                                <span className="text-6xl">🥘</span>
+                                <div className="text-center animate-pulse">
+                                    <span className="text-6xl mb-2 block">🥘</span>
+                                    <span className="text-sm font-bold text-slate-600 px-2 break-keep leading-tight block">{currentCandidate}</span>
+                                </div>
                             ) : (
                                 <span className="text-6xl animate-bounce-slow">🥘</span>
                             )}
@@ -366,7 +390,7 @@ export default function LunchRoulette() {
                                 className="w-full py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-2xl font-black text-xl shadow-xl shadow-orange-200 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
                             >
                                 <Shuffle className="w-6 h-6" />
-                                {isSpinning ? 'G O !' : 'LUNCH SPIN!'}
+                                {isSpinning ? '돌라는 중...' : 'LUNCH SPIN!'}
                             </button>
                             {selectedCategories.length === 0 && (
                                 <p className="text-xs text-red-500 font-bold text-center animate-pulse">카테고리를 먼저 선택해주세요!</p>
@@ -384,10 +408,10 @@ export default function LunchRoulette() {
                                 <h3 className="text-2xl font-black text-red-500 mb-2">벌칙 당첨!</h3>
                                 <p className="text-xl font-bold text-slate-800 break-keep">{selectedPenalty}</p>
                                 <button
-                                    onClick={resetFlow}
-                                    className="mt-6 w-full py-3 bg-slate-100 text-slate-500 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                                    onClick={reSpin}
+                                    className="mt-6 w-full py-3 bg-slate-100 text-slate-500 rounded-xl font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
                                 >
-                                    다시 하기
+                                    <RotateCcw className="w-4 h-4" /> 다시 돌리기
                                 </button>
                             </div>
                         ) : selectedStore && (
@@ -433,11 +457,11 @@ export default function LunchRoulette() {
                                         </p>
 
                                         <div className="grid grid-cols-2 gap-2 mt-4">
-                                            <Link href={`https://map.naver.com/p/search/${encodeURIComponent(selectedStore.name)}`} target="_blank" className="py-3 bg-[#03C75A] text-white rounded-xl font-bold text-center text-xs hover:brightness-105 transition-all">
-                                                네이버 지도
+                                            <Link href={`https://www.google.com/maps/search/${encodeURIComponent(selectedStore.name + ' ' + selectedStore.address)}`} target="_blank" className="py-3 bg-gray-100 text-slate-700 rounded-xl font-bold text-center text-xs hover:bg-gray-200 transition-all">
+                                                구글 지도
                                             </Link>
                                             <Link
-                                                href={selectedStore.url || storeDetails?.blogReviewUrl || `https://place.map.kakao.com/`}
+                                                href={selectedStore.url || `https://place.map.kakao.com/`}
                                                 target="_blank"
                                                 className="py-3 bg-yellow-400 text-slate-800 rounded-xl font-bold text-center text-xs hover:bg-yellow-300 transition-all flex items-center justify-center gap-1"
                                             >
@@ -448,7 +472,7 @@ export default function LunchRoulette() {
                                 </div>
 
                                 <button
-                                    onClick={resetFlow}
+                                    onClick={reSpin}
                                     className="w-full py-4 bg-slate-800 text-white rounded-2xl font-bold text-lg shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
                                 >
                                     <RotateCcw className="w-5 h-5" /> 다시 돌리기

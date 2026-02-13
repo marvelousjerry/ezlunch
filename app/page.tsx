@@ -18,8 +18,12 @@ export default function Home() {
 
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-start pt-24 px-4">
         {/* Hero Section */}
-        <section className="mb-6 text-center animate-fade-in">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-[#2F3438] mb-2 tracking-tight">
+        {/* Hero Section */}
+        <section className="mb-6 text-center animate-fade-in flex flex-col items-center gap-4">
+          <div className="w-20 h-20 bg-orange-500 rounded-[2rem] rotate-3 flex items-center justify-center shadow-lg shadow-orange-200 mb-2 animate-bounce-slow">
+            <span className="text-4xl text-white">📍</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black text-[#2F3438] tracking-tight">
             오늘 뭐 먹지?
           </h1>
         </section>
