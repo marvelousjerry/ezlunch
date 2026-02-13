@@ -456,16 +456,9 @@ export default function LunchRoulette() {
                                             {selectedStore.address}
                                         </p>
 
-                                        <div className="grid grid-cols-2 gap-2 mt-4">
-                                            <Link href={`https://www.google.com/maps/search/${encodeURIComponent(selectedStore.name + ' ' + selectedStore.address)}`} target="_blank" className="py-3 bg-gray-100 text-slate-700 rounded-xl font-bold text-center text-xs hover:bg-gray-200 transition-all">
-                                                구글 지도
-                                            </Link>
-                                            <Link
-                                                href={`https://www.google.com/search?q=${encodeURIComponent(selectedStore.name + ' 메뉴')}`}
-                                                target="_blank"
-                                                className="py-3 bg-yellow-400 text-slate-800 rounded-xl font-bold text-center text-xs hover:bg-yellow-300 transition-all flex items-center justify-center gap-1"
-                                            >
-                                                <Info className="w-3 h-3" /> 메뉴 검색
+                                        <div className="mt-4">
+                                            <Link href={`https://www.google.com/maps/search/${encodeURIComponent(selectedStore.name + ' ' + selectedStore.address)}`} target="_blank" className="block w-full py-3 bg-yellow-400 text-slate-900 rounded-xl font-bold text-center text-xs hover:bg-yellow-300 transition-all shadow-md flex items-center justify-center gap-1">
+                                                <Info className="w-3 h-3" /> 메뉴 전체 보기
                                             </Link>
                                         </div>
                                     </div>
