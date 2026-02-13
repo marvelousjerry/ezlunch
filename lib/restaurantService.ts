@@ -114,6 +114,7 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
     let blogReviewUrl: string | null = null;
     let rating: string | null = null;
     let reviewCount: string | null = null;
+    let menuInfo: { name: string; price: string }[] = [];
 
     // 1. Try to scrape data from Kakao Place URL (Highest Priority for Image/Rating)
     if (placeUrl) {
@@ -139,6 +140,17 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
                 // Attempt to find rating (Structure might vary, this is a best-effort based on common structures)
                 // Note: Kakao often renders these via JS, so static HTML scraping might miss it.
                 // We depend mostly on og:image here.
+
+                // Scrape Menu Data (Best Effort)
+                $('.list_menu > li').each((_, el) => {
+                    const name = $(el).find('.loss_word').text().trim();
+                    const price = $(el).find('.price_menu').text().trim();
+                    if (name) {
+                        menuInfo.push({ name, price: price || '가격 정보 없음' });
+                    }
+                });
+                // Limit to 5 items
+                menuInfo = menuInfo.slice(0, 5);
             }
         } catch (e) {
             console.error('Kakao Place Scraping Failed:', e);
@@ -205,7 +217,7 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
         }
     }
 
-    return { imageUrl, description, blogReviewUrl, rating, reviewCount };
+    return { imageUrl, description, blogReviewUrl, rating, reviewCount, menuInfo };
 }
 
 export async function getRestaurants(lat: number, lng: number, menu?: string | null, radius: number = 1000) {

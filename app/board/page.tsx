@@ -343,9 +343,9 @@ export default function BoardPage() {
                 </div>
             </div>
 
-            {/* Edit Modal - Fixed Full Screen */}
+            {/* Edit Modal - Fixed Full Screen with inset-0 to prevent scrollbar shifting */}
             {isEditModalOpen && (
-                <div className="fixed top-0 left-0 w-screen h-screen z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in text-left">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in text-left">
                     <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative animate-scale-up">
                         <button
                             onClick={closeEditModal}
