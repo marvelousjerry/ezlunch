@@ -321,7 +321,7 @@ export default function LunchRoulette() {
                 </div>
                 <div className="mt-3 text-right">
                     <p className="text-[10px] font-bold text-slate-400">
-                        {stores.length}곳의 맛집 대기 중
+                        선택된 카테고리: <span className="text-primary text-sm">{stores.filter(s => selectedCategories.includes(s.category)).length}</span> 곳
                     </p>
                 </div>
             </div>
@@ -336,9 +336,9 @@ export default function LunchRoulette() {
                     <div className="w-full flex-1 flex flex-col items-center justify-center gap-6 py-8">
                         <div className={`relative w-48 h-48 bg-white rounded-full flex items-center justify-center shadow-lg border-4 transition-all duration-300 ${isSpinning ? 'border-orange-400 animate-spin' : 'border-orange-100'}`}>
                             {isSpinning ? (
-                                <span className="text-4xl">🥘</span>
+                                <span className="text-6xl">🥘</span>
                             ) : (
-                                <span className="text-6xl animate-bounce-slow">🎲</span>
+                                <span className="text-6xl animate-bounce-slow">🥘</span>
                             )}
                         </div>
 
@@ -366,7 +366,7 @@ export default function LunchRoulette() {
                                 className="w-full py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-2xl font-black text-xl shadow-xl shadow-orange-200 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
                             >
                                 <Shuffle className="w-6 h-6" />
-                                {isSpinning ? 'G O !' : 'START!'}
+                                {isSpinning ? 'G O !' : 'LUNCH SPIN!'}
                             </button>
                             {selectedCategories.length === 0 && (
                                 <p className="text-xs text-red-500 font-bold text-center animate-pulse">카테고리를 먼저 선택해주세요!</p>
@@ -378,74 +378,81 @@ export default function LunchRoulette() {
                 {/* 2. Result State */}
                 {!isSpinning && (selectedStore || selectedPenalty) && (
                     <div className="w-full relative animate-scale-up">
-                        {/* Reset Button */}
-                        <button
-                            onClick={resetFlow}
-                            className="absolute -top-2 -right-2 z-20 p-2 bg-white rounded-full shadow-md hover:bg-slate-50 transition-colors"
-                        >
-                            <RotateCcw className="w-5 h-5 text-slate-400" />
-                        </button>
-
                         {isPenalty ? (
                             <div className="bg-white rounded-[2rem] p-8 text-center shadow-lg border-2 border-red-100">
                                 <div className="text-6xl mb-4 animate-bounce">🚨</div>
                                 <h3 className="text-2xl font-black text-red-500 mb-2">벌칙 당첨!</h3>
                                 <p className="text-xl font-bold text-slate-800 break-keep">{selectedPenalty}</p>
+                                <button
+                                    onClick={resetFlow}
+                                    className="mt-6 w-full py-3 bg-slate-100 text-slate-500 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                                >
+                                    다시 하기
+                                </button>
                             </div>
                         ) : selectedStore && (
-                            <div className="bg-white rounded-[2rem] overflow-hidden shadow-lg border border-slate-100">
-                                {/* Image */}
-                                <div className="relative w-full h-56 bg-gray-100 group">
-                                    {isDetailsLoading ? (
-                                        <div className="w-full h-full flex items-center justify-center">
-                                            <div className="w-8 h-8 border-4 border-orange-200 border-t-primary rounded-full animate-spin"></div>
+                            <div className="flex flex-col gap-4">
+                                <div className="bg-white rounded-[2rem] overflow-hidden shadow-lg border border-slate-100">
+                                    {/* Image */}
+                                    <div className="relative w-full h-56 bg-gray-100 group">
+                                        {isDetailsLoading ? (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <div className="w-8 h-8 border-4 border-orange-200 border-t-primary rounded-full animate-spin"></div>
+                                            </div>
+                                        ) : storeDetails?.imageUrl ? (
+                                            <img
+                                                src={storeDetails.imageUrl}
+                                                alt={selectedStore.name}
+                                                className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50/50 text-orange-200">
+                                                <div className="text-6xl mb-2 grayscale opacity-50">🍽️</div>
+                                                <p className="text-xs font-bold text-orange-300">이미지 준비중</p>
+                                            </div>
+                                        )}
+                                        <div className="absolute top-4 left-4">
+                                            <span className="px-2.5 py-1 bg-white/90 backdrop-blur-sm text-primary rounded-lg text-xs font-black shadow-sm">
+                                                {selectedStore.category}
+                                            </span>
                                         </div>
-                                    ) : storeDetails?.imageUrl ? (
-                                        <img
-                                            src={storeDetails.imageUrl}
-                                            alt={selectedStore.name}
-                                            className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50/50 text-orange-200">
-                                            <div className="text-6xl mb-2 grayscale opacity-50">🍽️</div>
-                                            <p className="text-xs font-bold text-orange-300">이미지 준비중</p>
+                                    </div>
+
+                                    {/* Info */}
+                                    <div className="p-5">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h2 className="text-2xl font-black text-slate-800 leading-tight">{selectedStore.name}</h2>
+                                            <div className="flex items-center gap-1 bg-yellow-400/10 px-2 py-1 rounded-lg text-yellow-700 font-bold text-xs">
+                                                <span>⭐</span> {storeDetails?.rating || '-'}
+                                            </div>
                                         </div>
-                                    )}
-                                    <div className="absolute top-4 left-4">
-                                        <span className="px-2.5 py-1 bg-white/90 backdrop-blur-sm text-primary rounded-lg text-xs font-black shadow-sm">
-                                            {selectedStore.category}
-                                        </span>
+
+                                        <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mb-4">
+                                            <MapPin className="w-3.5 h-3.5" />
+                                            {selectedStore.address}
+                                        </p>
+
+                                        <div className="grid grid-cols-2 gap-2 mt-4">
+                                            <Link href={`https://map.naver.com/p/search/${encodeURIComponent(selectedStore.name)}`} target="_blank" className="py-3 bg-[#03C75A] text-white rounded-xl font-bold text-center text-xs hover:brightness-105 transition-all">
+                                                네이버 지도
+                                            </Link>
+                                            <Link
+                                                href={selectedStore.url || storeDetails?.blogReviewUrl || `https://place.map.kakao.com/`}
+                                                target="_blank"
+                                                className="py-3 bg-yellow-400 text-slate-800 rounded-xl font-bold text-center text-xs hover:bg-yellow-300 transition-all flex items-center justify-center gap-1"
+                                            >
+                                                <Info className="w-3 h-3" /> 메뉴 전체 보기
+                                            </Link>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Info */}
-                                <div className="p-5">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h2 className="text-2xl font-black text-slate-800 leading-tight">{selectedStore.name}</h2>
-                                        <div className="flex items-center gap-1 bg-yellow-400/10 px-2 py-1 rounded-lg text-yellow-700 font-bold text-xs">
-                                            <span>⭐</span> {storeDetails?.rating || '-'}
-                                        </div>
-                                    </div>
-
-                                    <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mb-4">
-                                        <MapPin className="w-3.5 h-3.5" />
-                                        {selectedStore.address}
-                                    </p>
-
-                                    <div className="grid grid-cols-2 gap-2 mt-4">
-                                        <Link href={`https://map.naver.com/p/search/${encodeURIComponent(selectedStore.name)}`} target="_blank" className="py-3 bg-[#03C75A] text-white rounded-xl font-bold text-center text-xs hover:brightness-105 transition-all">
-                                            네이버 지도
-                                        </Link>
-                                        <Link
-                                            href={selectedStore.url || `https://place.map.kakao.com/`}
-                                            target="_blank"
-                                            className="py-3 bg-yellow-400 text-slate-800 rounded-xl font-bold text-center text-xs hover:bg-yellow-300 transition-all flex items-center justify-center gap-1"
-                                        >
-                                            <Info className="w-3 h-3" /> 메뉴 전체 보기
-                                        </Link>
-                                    </div>
-                                </div>
+                                <button
+                                    onClick={resetFlow}
+                                    className="w-full py-4 bg-slate-800 text-white rounded-2xl font-bold text-lg shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <RotateCcw className="w-5 h-5" /> 다시 돌리기
+                                </button>
                             </div>
                         )}
                     </div>

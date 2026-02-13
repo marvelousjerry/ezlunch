@@ -15,43 +15,36 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 2000, k
     }
 
     let allDocuments: any[] = [];
-    const searchKeywords = keyword === '배달' ? ['배달 맛집'] : [keyword];
+    // Search for specific categories to maximize results (Kakao API limit per keyword is small)
+    const searchKeywords = keyword === '배달'
+        ? ['배달 맛집']
+        : ['한식', '양식', '중식', '일식', '분식', '치킨', '패스트푸드', '맛집'];
 
     try {
-        for (const kw of searchKeywords) {
-            // Fetch 5 pages as requested
-            const pages = [1, 2, 3, 4, 5];
-
-            for (const page of pages) {
+        // Run fetches in parallel for speed
+        const promises = searchKeywords.map(async (kw) => {
+            let docs: any[] = [];
+            // Fetch up to 3 pages per keyword (45 results per keyword)
+            for (let page = 1; page <= 3; page++) {
                 const url = `https://dapi.kakao.com/v2/local/search/keyword.json?y=${lat}&x=${lng}&radius=${radius}&query=${encodeURIComponent(kw)}&sort=distance&size=15&page=${page}`;
-
-                const res = await fetch(url, {
-                    headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
-                });
-
-                if (!res.ok) continue;
-
-                const data = await res.json();
-                if (data.documents && data.documents.length > 0) {
-                    allDocuments = [...allDocuments, ...data.documents];
-                    if (data.meta?.is_end) break;
-                } else {
-                    break;
-                }
+                try {
+                    const res = await fetch(url, { headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` } });
+                    if (!res.ok) break;
+                    const data = await res.json();
+                    if (data.documents && data.documents.length > 0) {
+                        docs = [...docs, ...data.documents];
+                        if (data.meta?.is_end) break;
+                    } else {
+                        break;
+                    }
+                } catch (e) { break; }
             }
-        }
+            return docs;
+        });
 
-        // If generic '맛집' search, also try Category Search (FD6 = Food) to ensure variety
-        if (keyword === '맛집' && allDocuments.length < 45) {
-            for (const page of [1, 2, 3]) {
-                const catUrl = `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=FD6&y=${lat}&x=${lng}&radius=${radius}&sort=distance&size=15&page=${page}`;
-                const catRes = await fetch(catUrl, { headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` } });
-                if (catRes.ok) {
-                    const catData = await catRes.json();
-                    if (catData.documents) allDocuments = [...allDocuments, ...catData.documents];
-                }
-            }
-        }
+        const results = await Promise.all(promises);
+        allDocuments = results.flat();
+
 
         // Deduplicate
         const uniqueMap = new Map();
