@@ -43,11 +43,17 @@ export default function BoardPage() {
     };
 
     const handleLike = async (postId: string, e: React.MouseEvent) => {
-        // Trigger Heart Effect
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        setHeartEffect({ active: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-        // Allow enough time for particles to fade out (approx 1s)
-        setTimeout(() => setHeartEffect(prev => ({ ...prev, active: false })), 1200);
+        // Find current post
+        const post = posts.find(p => p.id === postId);
+
+        // Trigger Heart Effect ONLY if not currently liked
+        if (post && !post.liked) {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            // Scroll correction is automatic with getBoundingClientRect as it returns viewport coordinates.
+            // But we need to make sure the HeartExplosion component is fixed/absolute relative to viewport.
+            setHeartEffect({ active: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+            setTimeout(() => setHeartEffect(prev => ({ ...prev, active: false })), 1200);
+        }
 
         try {
             const res = await fetch('/api/posts/like', {
@@ -236,119 +242,121 @@ export default function BoardPage() {
     );
 
     return (
-        <div className="space-y-8 animate-fade-in-up pb-20 relative">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Link href="/" className="p-2.5 hover:bg-orange-50 rounded-full transition-colors border border-transparent hover:border-orange-100 group">
-                        <ArrowLeft className="w-6 h-6 text-slate-600 group-hover:text-primary transition-colors" />
-                    </Link>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-                        노래 추천 <span className="text-primary">게시판</span>
-                    </h1>
+        <>
+            <div className="space-y-8 animate-fade-in-up pb-20 relative">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link href="/" className="p-2.5 hover:bg-orange-50 rounded-full transition-colors border border-transparent hover:border-orange-100 group">
+                            <ArrowLeft className="w-6 h-6 text-slate-600 group-hover:text-primary transition-colors" />
+                        </Link>
+                        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+                            노래 추천 <span className="text-primary">게시판</span>
+                        </h1>
+                    </div>
                 </div>
-            </div>
 
-            <div className="bg-white p-6 rounded-[1.5rem] shadow-xl shadow-orange-100/30 border border-orange-100">
-                <h2 className="text-lg font-bold mb-5 flex items-center gap-2 text-slate-800">
-                    <div className="w-8 h-8 rounded-lg bg-orange-100 text-primary flex items-center justify-center">
-                        <Music className="w-5 h-5" />
-                    </div>
-                    함께 듣고 싶은 노래 추천
-                </h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 ml-1">노래 제목</label>
-                            <input
-                                type="text"
-                                placeholder="예: Hype Boy"
-                                value={formData.title}
-                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400"
-                                required
-                            />
+                <div className="bg-white p-6 rounded-[1.5rem] shadow-xl shadow-orange-100/30 border border-orange-100">
+                    <h2 className="text-lg font-bold mb-5 flex items-center gap-2 text-slate-800">
+                        <div className="w-8 h-8 rounded-lg bg-orange-100 text-primary flex items-center justify-center">
+                            <Music className="w-5 h-5" />
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 ml-1">가수</label>
-                            <input
-                                type="text"
-                                placeholder="예: 뉴진스"
-                                value={formData.artist}
-                                onChange={(e) => setFormData({ ...formData, artist: e.target.value })}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400"
-                                required
-                            />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 ml-1">비밀번호 (4자리)</label>
-                            <input
-                                type="password"
-                                maxLength={4}
-                                placeholder="0000"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                                required
-                            />
-                        </div>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 ml-1">코멘트 (선택)</label>
-                        <textarea
-                            placeholder="이 노래를 추천하는 이유를 들려주세요!"
-                            value={formData.content}
-                            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none h-24 placeholder:text-gray-400"
-                        />
-                    </div>
-                    <div className="flex justify-end pt-2">
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="flex items-center gap-2 px-8 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 shadow-lg shadow-gray-200 font-bold"
-                        >
-                            <Send className="w-4 h-4" />
-                            {isSubmitting ? '등록 중...' : '추천하기'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            {bestPosts.length > 0 && (
-                <div className="space-y-5">
-                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        🔥 Best DJ 추천곡 <span className="text-orange-500">{bestPosts.length}</span>
+                        함께 듣고 싶은 노래 추천
                     </h2>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {bestPosts.map(post => <PostCard key={post.id} post={post} />)}
-                    </div>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 ml-1">노래 제목</label>
+                                <input
+                                    type="text"
+                                    placeholder="예: Hype Boy"
+                                    value={formData.title}
+                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 ml-1">가수</label>
+                                <input
+                                    type="text"
+                                    placeholder="예: 뉴진스"
+                                    value={formData.artist}
+                                    onChange={(e) => setFormData({ ...formData, artist: e.target.value })}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-gray-400"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 ml-1">비밀번호 (4자리)</label>
+                                <input
+                                    type="password"
+                                    maxLength={4}
+                                    placeholder="0000"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 ml-1">코멘트 (선택)</label>
+                            <textarea
+                                placeholder="이 노래를 추천하는 이유를 들려주세요!"
+                                value={formData.content}
+                                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none h-24 placeholder:text-gray-400"
+                            />
+                        </div>
+                        <div className="flex justify-end pt-2">
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="flex items-center gap-2 px-8 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 shadow-lg shadow-gray-200 font-bold"
+                            >
+                                <Send className="w-4 h-4" />
+                                {isSubmitting ? '등록 중...' : '추천하기'}
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            )}
 
-            <div className="space-y-5">
-                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    최신 추천곡 <span className="text-primary">{normalPosts.length}</span>
-                </h2>
-                {loading ? (
-                    <div className="text-center py-16">
-                        <div className="w-8 h-8 border-4 border-orange-100 border-t-primary rounded-full animate-spin mx-auto"></div>
-                    </div>
-                ) : normalPosts.length === 0 && bestPosts.length === 0 ? (
-                    <div className="text-center py-16 bg-white rounded-[1.5rem] border border-dashed border-gray-300 text-gray-500">
-                        아직 등록된 노래가 없어요.<br />첫 번째 DJ가 되어보세요! 🎧
-                    </div>
-                ) : (
-                    <div className="grid gap-4 md:grid-cols-2">
-                        {normalPosts.map((post) => (
-                            <PostCard key={post.id} post={post} />
-                        ))}
+                {bestPosts.length > 0 && (
+                    <div className="space-y-5">
+                        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                            🔥 Best DJ 추천곡 <span className="text-orange-500">{bestPosts.length}</span>
+                        </h2>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {bestPosts.map(post => <PostCard key={post.id} post={post} />)}
+                        </div>
                     </div>
                 )}
+
+                <div className="space-y-5">
+                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        최신 추천곡 <span className="text-primary">{normalPosts.length}</span>
+                    </h2>
+                    {loading ? (
+                        <div className="text-center py-16">
+                            <div className="w-8 h-8 border-4 border-orange-100 border-t-primary rounded-full animate-spin mx-auto"></div>
+                        </div>
+                    ) : normalPosts.length === 0 && bestPosts.length === 0 ? (
+                        <div className="text-center py-16 bg-white rounded-[1.5rem] border border-dashed border-gray-300 text-gray-500">
+                            아직 등록된 노래가 없어요.<br />첫 번째 DJ가 되어보세요! 🎧
+                        </div>
+                    ) : (
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {normalPosts.map((post) => (
+                                <PostCard key={post.id} post={post} />
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Edit Modal */}
+            {/* Edit Modal - Moved outside to prevent clipping */}
             {isEditModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in text-left">
                     <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative animate-scale-up">
                         <button
                             onClick={closeEditModal}
@@ -424,6 +432,6 @@ export default function BoardPage() {
                 </div>
             )}
             <HeartExplosion active={heartEffect.active} x={heartEffect.x} y={heartEffect.y} />
-        </div>
+        </>
     );
 }
