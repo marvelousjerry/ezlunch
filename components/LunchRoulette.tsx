@@ -21,6 +21,8 @@ const PENALTIES = [
     '디저트 쏘기 🍰'
 ];
 
+const LUNCH_CATEGORIES = ['한식', '양식', '중식', '일식', '분식', '아시안', '패스트푸드', '치킨', '배달'];
+
 type Step = 'intro' | 'category' | 'roulette';
 
 export default function LunchRoulette() {
@@ -63,93 +65,93 @@ export default function LunchRoulette() {
         }
     }, [selectedStore, isSpinning, isPenalty]);
 
-    const fetchStoreDetails = async (store: Store) => {
-        if (!store.url) return;
-        setIsDetailsLoading(true);
-        try {
-            const res = await fetch(`/api/restaurants/details?id=${store.id}&url=${encodeURIComponent(store.url)}&name=${encodeURIComponent(store.name)}`);
-            const data = await res.json();
-            setStoreDetails(data);
-        } catch (error) {
-            console.error('Failed to fetch store details', error);
-        } finally {
-            setIsDetailsLoading(false);
-        }
-    };
+    if (!store.url) return;
+    setIsDetailsLoading(true);
+    try {
+        const res = await fetch(`/api/restaurants/details?id=${store.id}&url=${encodeURIComponent(store.url)}&name=${encodeURIComponent(store.name)}&address=${encodeURIComponent(store.address || '')}`);
+        const data = await res.json();
+        setStoreDetails(data);
+    } catch (error) {
+        console.error('Failed to fetch store details', error);
+    } finally {
+        setIsDetailsLoading(false);
+    }
+};
 
-    const fetchReviews = async (name: string, address?: string) => {
-        setIsReviewsLoading(true);
-        try {
-            const res = await fetch(`/api/restaurants/reviews?name=${encodeURIComponent(name)}&address=${encodeURIComponent(address || '')}`);
-            const data = await res.json();
-            setReviews(data.reviews || []);
-        } catch (error) {
-            console.error('Failed to fetch reviews', error);
-        } finally {
-            setIsReviewsLoading(false);
-        }
-    };
+const fetchReviews = async (name: string, address?: string) => {
+    setIsReviewsLoading(true);
+    try {
+        const res = await fetch(`/api/restaurants/reviews?name=${encodeURIComponent(name)}&address=${encodeURIComponent(address || '')}`);
+        const data = await res.json();
+        setReviews(data.reviews || []);
+    } catch (error) {
+        console.error('Failed to fetch reviews', error);
+    } finally {
+        setIsReviewsLoading(false);
+    }
+};
 
-    // Dot Animation Effect
-    useEffect(() => {
-        if (!isScanning) {
-            setScanDots('');
-            return;
-        }
-        const interval = setInterval(() => {
-            setScanDots(prev => prev.length >= 3 ? '' : prev + '.');
-        }, 500);
-        return () => clearInterval(interval);
-    }, [isScanning]);
+// Dot Animation Effect
+useEffect(() => {
+    if (!isScanning) {
+        setScanDots('');
+        return;
+    }
+    const interval = setInterval(() => {
+        setScanDots(prev => prev.length >= 3 ? '' : prev + '.');
+    }, 500);
+    return () => clearInterval(interval);
+}, [isScanning]);
 
-    const initialScan = async () => {
-        setIsScanning(true);
-        setStores([]);
+const initialScan = async () => {
+    setIsScanning(true);
+    setStores([]);
 
-        const latitude = 37.5635;
-        const longitude = 127.0035;
-        setCurrentCoords({ lat: latitude, lng: longitude });
+    const latitude = 37.5635;
+    const longitude = 127.0035;
+    setCurrentCoords({ lat: latitude, lng: longitude });
 
-        try {
-            // Fetch both Standard (Lunch/Dinner) and Delivery-specific
-            const [resStandard, resDelivery] = await Promise.all([
-                fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&t=${Date.now()}`),
-                fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&menu=배달&t=${Date.now()}`)
-            ]);
+    try {
+        // Fetch both Standard (Lunch/Dinner) and Delivery-specific
+        const [resStandard, resDelivery] = await Promise.all([
+            fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&t=${Date.now()}`),
+            fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&menu=배달&t=${Date.now()}`)
+        ]);
 
-            const dataStandard = await resStandard.json();
-            const dataDelivery = await resDelivery.json();
+        const dataStandard = await resStandard.json();
+        const dataDelivery = await resDelivery.json();
 
-            let allStores = [...(dataStandard.stores || [])];
+        let allStores = [...(dataStandard.stores || [])];
 
-            // Merge Delivery stores if not already present
-            const existingIds = new Set(allStores.map(s => s.id));
-            if (dataDelivery.stores) {
-                dataDelivery.stores.forEach((s: any) => {
-                    if (!existingIds.has(s.id)) {
-                        allStores.push(s);
-                    }
-                });
+        // Merge Delivery stores if not already present
+        const existingIds = new Set(allStores.map(s => s.id));
+        if (dataDelivery.stores) {
+            dataDelivery.stores.forEach((s: any) => {
+                // Fetch stores using a single endpoint, assuming it's Google Maps based
+                const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&t=${Date.now()}`);
+                const data = await res.json();
+
+                if (data.stores) {
+                    setStores(data.stores);
+                    const uniqueCats = Array.from(new Set(data.stores.map((s: any) => s.category))).filter(Boolean) as string[];
+                    setCategories(uniqueCats.sort());
+
+                    // Default Select ONLY Lunch Categories
+                    const defaultSelected = uniqueCats.filter(cat => LUNCH_CATEGORIES.includes(cat));
+                    setSelectedCategories(defaultSelected.length > 0 ? defaultSelected : uniqueCats);
+
+                    setStep('category');
+                } else {
+                    alert('주변 식당을 충분히 찾을 수 없습니다.');
+                }
+            } catch (error) {
+                console.error('Initial scan failed', error);
+                alert('데이터 로드 실패');
+            } finally {
+                setIsScanning(false);
             }
+        };
 
-            if (allStores.length > 0) {
-                setStores(allStores);
-                const uniqueCats = Array.from(new Set(allStores.map((s: any) => s.category))).filter(Boolean) as string[];
-                setCategories(uniqueCats.sort());
-                setSelectedCategories(uniqueCats);
-                setStep('category');
-            } else {
-                alert('주변 식당을 충분히 찾을 수 없습니다.');
-            }
-        } catch (error) {
-            console.error('Initial scan failed', error);
-            alert('데이터 로드 실패');
-        } finally {
-            setIsScanning(false);
-        }
-    };
-
-    const resetFlow = () => {
         setStep('intro');
         setSelectedStore(null);
         setSelectedPenalty(null);
@@ -158,6 +160,7 @@ export default function LunchRoulette() {
         setStoreDetails(null);
         setReviews([]);
         setHistory([]);
+        setStores([]); // Clear stores on reset
     };
 
     const toggleCategory = (cat: string) => {
@@ -471,9 +474,8 @@ export default function LunchRoulette() {
 
                     {selectedStore && !isSpinning && !isPenalty && (
                         <div className="grid grid-cols-2 gap-3 animate-enter pb-4">
-                            <Link href={`https://map.naver.com/p/search/${encodeURIComponent(selectedStore.name)}`} target="_blank" className="py-3 bg-[#03C75A] text-white rounded-xl font-bold text-center text-sm hover:brightness-95 transition-all">네이버 지도</Link>
                             <Link href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedStore.name)}`} target="_blank" className="py-3 bg-blue-500 text-white rounded-xl font-bold text-center text-sm hover:brightness-95 transition-all">구글 지도</Link>
-                            <Link href={`/recommend?menu=${selectedStore.name}&lat=${currentCoords.lat}&lng=${currentCoords.lng}`} className="col-span-2 py-3 bg-orange-50 text-primary border border-orange-100 rounded-xl font-bold text-center text-sm flex items-center justify-center gap-2 hover:bg-orange-100 transition-all"><Info className="w-4 h-4" /> 맛집 상세</Link>
+                            <Link href={`/recommend?menu=${selectedStore.name}&lat=${currentCoords.lat}&lng=${currentCoords.lng}`} className="py-3 bg-orange-50 text-primary border border-orange-100 rounded-xl font-bold text-center text-sm flex items-center justify-center gap-2 hover:bg-orange-100 transition-all"><Info className="w-4 h-4" /> 맛집 상세</Link>
                         </div>
                     )}
                 </div>

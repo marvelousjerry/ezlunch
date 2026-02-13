@@ -1,12 +1,12 @@
 const KAKAO_API_KEY = process.env.KAKAO_API_KEY;
 
-// Categories to exclude from "Lunch" results
-const DENY_CATEGORIES = ['카페', '커피전문점', '술집', '호프', '와인', '칵테일', '간식', '샐러드', '디저트', '제과', '베이커리', '떡카페', '차'];
+// Categories to exclude from "Lunch" results - MOVED TO FRONTEND DEFAULT SELECTION
+// const DENY_CATEGORIES = ['카페', '커피전문점', '술집', '호프', '와인', '칵테일', '간식', '샐러드', '디저트', '제과', '베이커리', '떡카페', '차'];
 
 /**
  * Fetches restaurants from Kakao API.
- * 1. Filters out non-meal categories (Cafe, Bar, etc).
- * 2. Supports "Delivery" search.
+ * Fetches 5 pages to get maximum results.
+ * Returns ALL categories (Frontend handles default selection).
  */
 async function fetchFromKakao(lat: number, lng: number, radius: number = 2000, keyword: string = '맛집') {
     if (!KAKAO_API_KEY) {
@@ -19,8 +19,8 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 2000, k
 
     try {
         for (const kw of searchKeywords) {
-            // We'll try up to 3 pages to get results
-            const pages = [1, 2, 3];
+            // Fetch 5 pages as requested
+            const pages = [1, 2, 3, 4, 5];
 
             for (const page of pages) {
                 const url = `https://dapi.kakao.com/v2/local/search/keyword.json?y=${lat}&x=${lng}&radius=${radius}&query=${encodeURIComponent(kw)}&sort=distance&size=15&page=${page}`;
@@ -42,7 +42,7 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 2000, k
         }
 
         // If generic '맛집' search, also try Category Search (FD6 = Food) to ensure variety
-        if (keyword === '맛집' && allDocuments.length < 30) {
+        if (keyword === '맛집' && allDocuments.length < 45) {
             for (const page of [1, 2, 3]) {
                 const catUrl = `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=FD6&y=${lat}&x=${lng}&radius=${radius}&sort=distance&size=15&page=${page}`;
                 const catRes = await fetch(catUrl, { headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` } });
@@ -53,7 +53,7 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 2000, k
             }
         }
 
-        // Deduplicate & Filter
+        // Deduplicate
         const uniqueMap = new Map();
 
         allDocuments.forEach(doc => {
@@ -63,30 +63,25 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 2000, k
             const catParts = catName.split(' > ');
             const rootCategory = catParts[0];
             const subCategory = catParts[1] || '';
-            const leafCategory = catParts[catParts.length - 1];
+            // const leafCategory = catParts[catParts.length - 1]; // No longer used
 
-            // Filter out Deny Categories
-            // If keyword is explicitly '배달', we might be more lenient, but still exclude pure cafes if possible.
-            // But if keyword is '맛집', strictly remove restricted categories.
-            if (keyword !== '배달') {
-                if (DENY_CATEGORIES.some(denied => catName.includes(denied))) return;
-            }
-
-            // Classification
+            // Classification Logic
             let category = subCategory || rootCategory || '기타';
             if (keyword === '배달') {
                 category = '배달';
             } else {
-                // Simplify category names
-                if (category.includes('한식')) category = '한식';
-                else if (category.includes('양식')) category = '양식';
-                else if (category.includes('중식')) category = '중식';
-                else if (category.includes('일식')) category = '일식';
+                // Simplify category names for UI grouping
+                if (category.includes('한식') || rootCategory === '한식') category = '한식';
+                else if (category.includes('양식') || rootCategory === '양식') category = '양식';
+                else if (category.includes('중식') || rootCategory === '중식') category = '중식';
+                else if (category.includes('일식') || rootCategory === '일식') category = '일식';
                 else if (category.includes('분식')) category = '분식';
                 else if (category.includes('아시아')) category = '아시안';
                 else if (category.includes('패스트푸드')) category = '패스트푸드';
                 else if (category.includes('치킨')) category = '치킨';
-                else category = '기타'; // Group others
+                else if (category.includes('카페') || category.includes('커피')) category = '카페/디저트';
+                else if (category.includes('술집') || category.includes('호프') || category.includes('와인') || category.includes('바')) category = '술집';
+                else category = category; // Keep original if specific enough, otherwise '기타'
             }
 
             uniqueMap.set(doc.id, {
@@ -110,7 +105,7 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 2000, k
     }
 }
 
-export async function getRestaurantDetails(placeId: string, placeUrl: string, name?: string) {
+export async function getRestaurantDetails(placeId: string, placeUrl: string, name?: string, address?: string) {
     // Instead of scraping which is flaky, we prioritize Blog Search to find an image/description.
 
     let imageUrl: string | null = null;
@@ -119,8 +114,23 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
 
     if (KAKAO_API_KEY && name) {
         try {
-            // Search for "[Name] [District] 맛집" to be more specific if possible, but here just Name
-            const query = name + ' 맛집';
+            // Refined Query: "[Name] [District_Dong]"
+            // We need to extract the 'Dong' or 'Gu' from the address if available to be specific.
+            // But here we don't have address passed in. We should probably pass address to this function.
+            // Updating the signature of this function in the next step.
+            // For now, let's just use the name as efficiently as possible.
+
+            let query = name;
+            if (address) {
+                const parts = address.split(' ');
+                if (parts.length > 2) {
+                    // e.g. "Seoul Jung-gu Myeongdong" -> "Myeongdong Name"
+                    query = `${parts[2]} ${name}`;
+                } else if (parts.length > 1) {
+                    query = `${parts[1]} ${name}`;
+                }
+            }
+
             const searchRes = await fetch(`https://dapi.kakao.com/v2/search/blog?query=${encodeURIComponent(query)}&size=3`, {
                 headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
             });
@@ -133,13 +143,24 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
                     imageUrl = validDoc.thumbnail;
                     description = validDoc.title.replace(/<[^>]*>?/gm, ''); // Strip HTML tags
                     blogReviewUrl = validDoc.url;
-                } else {
-                    // Fallback to first item even if no thumb? No, we need image.
-                    if (searchData.documents[0]) {
-                        description = searchData.documents[0].title.replace(/<[^>]*>?/gm, '');
-                    }
                 }
             }
+
+            // Fallback: If no image found in blogs, try Image Search
+            if (!imageUrl) {
+                try {
+                    const imgRes = await fetch(`https://dapi.kakao.com/v2/search/image?query=${encodeURIComponent(query)}&size=1`, {
+                        headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
+                    });
+                    const imgData = await imgRes.json();
+                    if (imgData.documents && imgData.documents.length > 0) {
+                        imageUrl = imgData.documents[0].thumbnail_url;
+                    }
+                } catch (imgErr) {
+                    console.error('Image search fallback failed', imgErr);
+                }
+            }
+
         } catch (e) {
             console.error('Fallback image search failed:', e);
         }
