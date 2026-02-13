@@ -33,7 +33,8 @@ export async function GET(request: Request) {
                     id: r.id,
                     name: r.name,
                     category: r.category || '기타',
-                    distance: r.distance
+                    distance: r.distance,
+                    address: r.address
                 });
             }
         });

@@ -10,6 +10,7 @@ type Store = {
     category: string;
     distance?: number;
     url?: string;
+    address?: string;
 };
 
 const PENALTIES = [
@@ -55,7 +56,7 @@ export default function LunchRoulette() {
     useEffect(() => {
         if (selectedStore && !isSpinning && !isPenalty) {
             fetchStoreDetails(selectedStore);
-            fetchReviews(selectedStore.name);
+            fetchReviews(selectedStore.name, selectedStore.address);
         } else {
             setStoreDetails(null);
             setReviews([]);
@@ -76,10 +77,10 @@ export default function LunchRoulette() {
         }
     };
 
-    const fetchReviews = async (name: string) => {
+    const fetchReviews = async (name: string, address?: string) => {
         setIsReviewsLoading(true);
         try {
-            const res = await fetch(`/api/restaurants/reviews?query=${encodeURIComponent(name + ' 맛집')}`);
+            const res = await fetch(`/api/restaurants/reviews?name=${encodeURIComponent(name)}&address=${encodeURIComponent(address || '')}`);
             const data = await res.json();
             setReviews(data.reviews || []);
         } catch (error) {
@@ -110,13 +111,31 @@ export default function LunchRoulette() {
         setCurrentCoords({ lat: latitude, lng: longitude });
 
         try {
-            const res = await fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&t=${Date.now()}`);
-            const data = await res.json();
+            // Fetch both Standard (Lunch/Dinner) and Delivery-specific
+            const [resStandard, resDelivery] = await Promise.all([
+                fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&t=${Date.now()}`),
+                fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&menu=배달&t=${Date.now()}`)
+            ]);
 
-            if (data.stores) {
-                setStores(data.stores);
-                const uniqueCats = Array.from(new Set(data.stores.map((s: any) => s.category))).filter(Boolean) as string[];
-                setCategories(uniqueCats);
+            const dataStandard = await resStandard.json();
+            const dataDelivery = await resDelivery.json();
+
+            let allStores = [...(dataStandard.stores || [])];
+
+            // Merge Delivery stores if not already present
+            const existingIds = new Set(allStores.map(s => s.id));
+            if (dataDelivery.stores) {
+                dataDelivery.stores.forEach((s: any) => {
+                    if (!existingIds.has(s.id)) {
+                        allStores.push(s);
+                    }
+                });
+            }
+
+            if (allStores.length > 0) {
+                setStores(allStores);
+                const uniqueCats = Array.from(new Set(allStores.map((s: any) => s.category))).filter(Boolean) as string[];
+                setCategories(uniqueCats.sort());
                 setSelectedCategories(uniqueCats);
                 setStep('category');
             } else {
@@ -453,7 +472,8 @@ export default function LunchRoulette() {
                     {selectedStore && !isSpinning && !isPenalty && (
                         <div className="grid grid-cols-2 gap-3 animate-enter pb-4">
                             <Link href={`https://map.naver.com/p/search/${encodeURIComponent(selectedStore.name)}`} target="_blank" className="py-3 bg-[#03C75A] text-white rounded-xl font-bold text-center text-sm hover:brightness-95 transition-all">네이버 지도</Link>
-                            <Link href={`/recommend?menu=${selectedStore.name}&lat=${currentCoords.lat}&lng=${currentCoords.lng}`} className="py-3 bg-orange-50 text-primary border border-orange-100 rounded-xl font-bold text-center text-sm flex items-center justify-center gap-2 hover:bg-orange-100 transition-all"><Info className="w-4 h-4" /> 맛집 상세</Link>
+                            <Link href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedStore.name)}`} target="_blank" className="py-3 bg-blue-500 text-white rounded-xl font-bold text-center text-sm hover:brightness-95 transition-all">구글 지도</Link>
+                            <Link href={`/recommend?menu=${selectedStore.name}&lat=${currentCoords.lat}&lng=${currentCoords.lng}`} className="col-span-2 py-3 bg-orange-50 text-primary border border-orange-100 rounded-xl font-bold text-center text-sm flex items-center justify-center gap-2 hover:bg-orange-100 transition-all"><Info className="w-4 h-4" /> 맛집 상세</Link>
                         </div>
                     )}
                 </div>

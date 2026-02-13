@@ -2,14 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-    // Protect admin routes
-    if (request.nextUrl.pathname.startsWith('/admin')) {
-        // Allow access to login page
-        if (request.nextUrl.pathname === '/admin/login') {
-            return NextResponse.next();
-        }
+    const path = request.nextUrl.pathname;
 
-        const token = request.cookies.get('admin_token');
+    // Protect /admin routes
+    if (path.startsWith('/admin') && path !== '/admin/login') {
+        const token = request.cookies.get('admin_token')?.value;
 
         if (!token) {
             return NextResponse.redirect(new URL('/admin/login', request.url));
