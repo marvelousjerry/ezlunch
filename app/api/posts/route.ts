@@ -72,12 +72,21 @@ export async function POST(request: Request) {
     }
 }
 
+import { cookies } from 'next/headers';
+import { verifySession } from '@/lib/auth';
+
+// ... (keep GET and POST)
+
 export async function DELETE(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
         const password = searchParams.get('password');
-        const isAdmin = searchParams.get('admin') === 'true';
+
+        // Securely check for admin session
+        const cookieStore = cookies();
+        const token = cookieStore.get('admin_token')?.value;
+        const isAdmin = token ? await verifySession(token) : false;
 
         if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
 
@@ -101,7 +110,12 @@ export async function DELETE(request: Request) {
 export async function PATCH(request: Request) {
     try {
         const body = await request.json();
-        const { id, title, artist, content, password, admin } = body;
+        const { id, title, artist, content, password } = body;
+
+        // Securely check for admin session
+        const cookieStore = cookies();
+        const token = cookieStore.get('admin_token')?.value;
+        const isAdmin = token ? await verifySession(token) : false;
 
         const post = await (prisma.post as any).findUnique({
             where: { id }
@@ -109,7 +123,7 @@ export async function PATCH(request: Request) {
 
         if (!post) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-        if (admin !== true && post.password !== password) {
+        if (!isAdmin && post.password !== password) {
             return NextResponse.json({ error: 'WRONG_PASSWORD' }, { status: 403 });
         }
 

@@ -110,9 +110,15 @@ export default function LunchRoulette() {
         return () => clearInterval(interval);
     }, [isScanning]);
 
+    // Auto-start scanning
+    useEffect(() => {
+        initialScan();
+    }, []);
+
     const initialScan = async () => {
         setIsScanning(true);
-        setStores([]);
+        // Don't clear stores immediately to avoid flicker if re-scanning
+        if (stores.length === 0) setStores([]);
 
         const latitude = 37.5635;
         const longitude = 127.0035;
@@ -162,14 +168,13 @@ export default function LunchRoulette() {
     };
 
     const resetFlow = () => {
-        setStep('intro');
+        setStep('category'); // Go back to category instead of intro
         setSelectedStore(null);
         setSelectedPenalty(null);
         setIsSpinning(false);
         setIsPenalty(false);
         setStoreDetails(null);
         setReviews([]);
-        setStores([]);
     };
 
     const toggleCategory = (cat: string) => {
@@ -262,28 +267,19 @@ export default function LunchRoulette() {
 
     // --- RENDER ---
 
-    if (step === 'intro') {
+    if (step === 'intro' || (step === 'category' && isScanning && stores.length === 0)) {
         return (
             <div className="w-full max-w-[30rem] mx-auto p-12 flex flex-col items-center justify-center min-h-[480px] bg-white rounded-[3rem] shadow-2xl shadow-orange-100/50 border border-orange-50 relative overflow-hidden animate-fade-in">
                 <div className="absolute top-0 right-0 -mr-20 -mt-20 w-56 h-56 bg-orange-50 rounded-full blur-3xl opacity-60"></div>
-                <div className="mb-10 w-28 h-28 bg-gradient-to-br from-orange-400 to-orange-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-orange-200 rotate-6 transform hover:rotate-0 transition-transform duration-500 cursor-pointer">
-                    <MapPin className="w-14 h-14 text-white" />
+
+                {/* Loading State */}
+                <div className="relative z-10 flex flex-col items-center gap-6">
+                    <div className="w-20 h-20 border-4 border-orange-100 border-t-primary rounded-full animate-spin"></div>
+                    <div className="text-center space-y-2">
+                        <h2 className="text-2xl font-black text-slate-900">맛집 탐색 중...</h2>
+                        <p className="text-slate-500 font-medium">주변의 맛집 정보를<br />불러오고 있습니다.</p>
+                    </div>
                 </div>
-                <div className="text-center space-y-4 mb-12 relative z-10">
-                    <h2 className="text-4xl font-black text-slate-900 tracking-tighter">오늘 뭐 먹지?</h2>
-                    <p className="text-slate-500 font-medium leading-relaxed break-keep px-4">
-                        주변의 맛있는 식당들을<br />
-                        빠르게 찾아보러 갈까요?
-                    </p>
-                </div>
-                <button
-                    onClick={initialScan}
-                    disabled={isScanning}
-                    className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold text-xl shadow-2xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 relative group overflow-hidden"
-                >
-                    <span className="relative z-10">{isScanning ? `탐색 중${scanDots}` : '시작하기'}</span>
-                    <div className="absolute inset-0 bg-primary translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                </button>
             </div>
         );
     }
@@ -292,7 +288,8 @@ export default function LunchRoulette() {
         return (
             <div className="w-full max-w-[30rem] mx-auto p-8 flex flex-col bg-white rounded-[2.5rem] shadow-2xl shadow-orange-100/30 border border-orange-50 min-h-[500px] animate-fade-in-up">
                 <div className="flex items-center justify-between mb-8">
-                    <button onClick={resetFlow} className="p-3 -ml-2 text-slate-400 hover:text-primary rounded-full hover:bg-orange-50 transition-all">
+                    <button onClick={resetFlow} className="p-3 -ml-2 text-slate-400 hover:text-primary rounded-full hover:bg-orange-50 transition-all opacity-0">
+                        {/* Hidden since nowhere to go back to */}
                         <ArrowLeft className="w-6 h-6" />
                     </button>
                     <h2 className="text-2xl font-black text-slate-800">카테고리 선택</h2>
@@ -336,7 +333,7 @@ export default function LunchRoulette() {
         <div className="flex flex-col items-center justify-center p-8 bg-white/80 backdrop-blur-md rounded-[2.5rem] shadow-2xl border border-orange-50 w-full max-w-[32rem] mx-auto relative animate-fade-in">
             <div className="absolute top-6 left-6 flex gap-4 z-20">
                 <button onClick={resetFlow} className="flex items-center gap-1 text-gray-400 hover:text-primary transition-colors">
-                    <RotateCcw className="w-4 h-4" /> <span className="text-xs font-bold">처음으로</span>
+                    <RotateCcw className="w-4 h-4" /> <span className="text-xs font-bold">다시하기</span>
                 </button>
                 <button onClick={() => setStep('category')} className="flex items-center gap-1 text-gray-400 hover:text-primary transition-colors">
                     <Check className="w-4 h-4" /> <span className="text-xs font-bold">카테고리 수정</span>

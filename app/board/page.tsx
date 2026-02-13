@@ -46,7 +46,8 @@ export default function BoardPage() {
         // Trigger Heart Effect
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         setHeartEffect({ active: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-        setTimeout(() => setHeartEffect(prev => ({ ...prev, active: false })), 600);
+        // Allow enough time for particles to fade out (approx 1s)
+        setTimeout(() => setHeartEffect(prev => ({ ...prev, active: false })), 1200);
 
         try {
             const res = await fetch('/api/posts/like', {
@@ -111,41 +112,61 @@ export default function BoardPage() {
         }
     };
 
-    const handleEdit = async (post: Post) => {
-        const password = prompt('비밀번호를 입력해주세요.');
-        if (!password) return;
+    // Edit Modal State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingPost, setEditingPost] = useState<Post | null>(null);
+    const [editForm, setEditForm] = useState({ title: '', artist: '', content: '', password: '' });
 
-        const newTitle = prompt('새 노래 제목', post.title);
-        const newArtist = prompt('새 가수 이름', post.artist);
-        const newContent = prompt('새 코멘트', post.content);
+    const openEditModal = (post: Post) => {
+        setEditingPost(post);
+        setEditForm({
+            title: post.title,
+            artist: post.artist,
+            content: post.content,
+            password: ''
+        });
+        setIsEditModalOpen(true);
+    };
 
-        if (newTitle === null || newArtist === null) return;
+    const closeEditModal = () => {
+        setIsEditModalOpen(false);
+        setEditingPost(null);
+        setEditForm({ title: '', artist: '', content: '', password: '' });
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingPost) return;
 
         try {
             const res = await fetch('/api/posts', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    id: post.id,
-                    title: newTitle,
-                    artist: newArtist,
-                    content: newContent,
-                    password: password
+                    id: editingPost.id,
+                    ...editForm
                 }),
             });
 
             if (res.ok) {
                 alert('수정되었습니다.');
                 fetchPosts();
+                closeEditModal();
             } else {
                 const err = await res.json();
                 alert(err.error || '수정 결과: 실패');
             }
         } catch (error) {
             console.error('Update failed', error);
+            alert('수정 중 오류가 발생했습니다.');
         }
     };
 
+    const handleEdit = (post: Post) => {
+        openEditModal(post);
+    };
+
+    // Derived State
     const bestPosts = posts.filter(p => p.likes >= 10);
     const normalPosts = posts.filter(p => p.likes < 10);
 
@@ -215,7 +236,7 @@ export default function BoardPage() {
     );
 
     return (
-        <div className="space-y-8 animate-fade-in-up pb-20">
+        <div className="space-y-8 animate-fade-in-up pb-20 relative">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <Link href="/" className="p-2.5 hover:bg-orange-50 rounded-full transition-colors border border-transparent hover:border-orange-100 group">
@@ -324,6 +345,84 @@ export default function BoardPage() {
                     </div>
                 )}
             </div>
+
+            {/* Edit Modal */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative animate-scale-up">
+                        <button
+                            onClick={closeEditModal}
+                            className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors"
+                        >
+                            <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <span className="text-primary">✏️</span> 게시글 수정
+                        </h2>
+
+                        <form onSubmit={handleEditSubmit} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 ml-1">노래 제목</label>
+                                <input
+                                    type="text"
+                                    value={editForm.title}
+                                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-bold text-slate-700"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 ml-1">가수</label>
+                                <input
+                                    type="text"
+                                    value={editForm.artist}
+                                    onChange={(e) => setEditForm({ ...editForm, artist: e.target.value })}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-bold text-slate-700"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-500 ml-1">코멘트</label>
+                                <textarea
+                                    value={editForm.content}
+                                    onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none h-24"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-red-500 ml-1">비밀번호 확인</label>
+                                <input
+                                    type="password"
+                                    placeholder="작성 시 입력한 비밀번호"
+                                    value={editForm.password}
+                                    onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                                    className="w-full px-4 py-3 bg-red-50 border border-red-100 rounded-xl focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none transition-all placeholder:text-red-300"
+                                    required
+                                />
+                            </div>
+
+                            <div className="pt-2 flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={closeEditModal}
+                                    className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-[2] py-3 bg-primary text-white rounded-xl font-bold hover:brightness-95 transition-all shadow-lg shadow-orange-200"
+                                >
+                                    수정 완료
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
             <HeartExplosion active={heartEffect.active} x={heartEffect.x} y={heartEffect.y} />
         </div>
     );

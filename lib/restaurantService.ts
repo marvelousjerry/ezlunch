@@ -175,10 +175,23 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
             // 3. Fallback: Image Search
             if (!imageUrl) {
                 try {
-                    const imgRes = await fetch(`https://dapi.kakao.com/v2/search/image?query=${encodeURIComponent(query)}&size=1`, {
+                    // Try exact name first
+                    let imgRes = await fetch(`https://dapi.kakao.com/v2/search/image?query=${encodeURIComponent(query)}&size=1`, {
                         headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
                     });
-                    const imgData = await imgRes.json();
+                    let imgData = await imgRes.json();
+
+                    // If no result, try just the place name without branch/location if it has long name
+                    if ((!imgData.documents || imgData.documents.length === 0) && name && name.length > 5) {
+                        const simplifiedName = name.split(' ')[0]; // E.g., '어거스트치킨' from '어거스트치킨 동대문점'
+                        if (simplifiedName && simplifiedName !== name) {
+                            imgRes = await fetch(`https://dapi.kakao.com/v2/search/image?query=${encodeURIComponent(simplifiedName + ' 맛집')}&size=1`, {
+                                headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
+                            });
+                            imgData = await imgRes.json();
+                        }
+                    }
+
                     if (imgData.documents && imgData.documents.length > 0) {
                         imageUrl = imgData.documents[0].thumbnail_url;
                     }

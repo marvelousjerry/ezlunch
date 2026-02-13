@@ -30,8 +30,8 @@ export default function AdminDashboard() {
     const handleDelete = async (id: string) => {
         if (!confirm('정말 삭제하시겠습니까?')) return;
 
-        // Use admin=true bypass
-        await fetch(`/api/posts?id=${id}&admin=true`, { method: 'DELETE' });
+        // Admin session is now handled via HttpOnly cookie
+        await fetch(`/api/posts?id=${id}`, { method: 'DELETE' });
         fetchPosts();
     };
 
@@ -50,8 +50,8 @@ export default function AdminDashboard() {
                     id: post.id,
                     title: newTitle,
                     artist: newArtist,
-                    content: newContent,
-                    admin: true // Admin bypass
+                    content: newContent
+                    // Admin session handled via cookie
                 }),
             });
 
@@ -68,10 +68,10 @@ export default function AdminDashboard() {
     };
 
     const handleLogout = async () => {
-        // In a real app, call logout API to clear cookie
-        // For now, simple redirect
-        document.cookie = 'admin_token=; Max-Age=0; path=/;';
+        // Clear cookie via API
+        await fetch('/api/auth/logout', { method: 'POST' });
         router.push('/admin/login');
+        router.refresh();
     };
 
     return (

@@ -21,6 +21,7 @@ export default function AdminLogin() {
 
         if (res.ok) {
             router.push('/admin');
+            router.refresh(); // Refresh to update middleware state
         } else {
             setError('로그인 실패: 아이디 또는 비밀번호를 확인하세요');
         }
