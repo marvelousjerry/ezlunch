@@ -150,8 +150,8 @@ export default function BoardPage() {
     const normalPosts = posts.filter(p => p.likes < 10);
 
     const PostCard = ({ post }: { post: Post }) => (
-        <div key={post.id} className="bg-white p-5 rounded-[1.25rem] shadow-sm border border-gray-200 hover:shadow-md transition-shadow relative flex gap-4 items-start">
-            <div className="absolute top-2 right-2 flex gap-1.5 z-10">
+        <div key={post.id} className="bg-white p-5 rounded-[1.25rem] shadow-sm border border-gray-200 hover:shadow-md transition-shadow relative flex gap-4 items-start group">
+            <div className="absolute top-2 right-2 flex gap-1.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <button onClick={() => handleEdit(post)} className="px-2 py-1 text-blue-600 hover:bg-blue-50 bg-white border border-blue-100 rounded-md transition-colors shadow-sm">
                     <span className="text-[10px] font-bold">수정</span>
                 </button>
@@ -191,7 +191,7 @@ export default function BoardPage() {
                     <div className="flex items-center gap-1">
                         <button
                             onClick={(e) => handleLike(post.id, e)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${post.liked
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all relative ${post.liked
                                 ? 'bg-orange-500 text-white shadow-orange-200 shadow-lg'
                                 : 'bg-slate-50 text-slate-400 hover:bg-orange-50 hover:text-orange-500'
                                 }`}
