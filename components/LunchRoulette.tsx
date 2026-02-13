@@ -63,7 +63,7 @@ export default function LunchRoulette() {
 
     // Category & Filter State
     const [categories, setCategories] = useState<string[]>([]);
-    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+    const [selectedCategories, setSelectedCategories] = useState<string[]>(['한식', '중식', '일식', '양식', '분식', '도시락']);
 
     const fetchStoreDetails = async (store: Store) => {
         if (!store.url) return;
