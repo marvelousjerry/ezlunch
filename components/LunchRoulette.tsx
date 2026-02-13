@@ -352,14 +352,20 @@ export default function LunchRoulette() {
                 {/* 1. Roulette Idle / Spinning State */}
                 {(!selectedStore && !selectedPenalty) && (
                     <div className="w-full flex-1 flex flex-col items-center justify-center gap-6 py-8">
-                        <div className={`relative w-48 h-48 bg-white rounded-full flex items-center justify-center shadow-lg border-4 transition-all duration-300 ${isSpinning ? 'border-orange-400' : 'border-orange-100'}`}>
+                        <div className="flex flex-col items-center gap-6">
                             {isSpinning ? (
-                                <div className="text-center">
-                                    <span className="text-6xl mb-2 block animate-bounce">🥘</span>
-                                    <span className="text-lg font-bold text-slate-800 px-2 break-keep leading-tight block">{currentCandidate}</span>
-                                </div>
+                                <>
+                                    <div className="w-20 h-20 border-4 border-orange-100 border-t-primary rounded-full animate-spin"></div>
+                                    <div className="text-center space-y-2">
+                                        <h2 className="text-2xl font-black text-slate-900">{currentCandidate}</h2>
+                                        <p className="text-slate-500 font-medium text-sm">메뉴 고르는 중...</p>
+                                    </div>
+                                </>
                             ) : (
-                                <span className="text-6xl">🥘</span>
+                                <div className="text-center space-y-4">
+                                    <div className="text-6xl">🎲</div>
+                                    <p className="text-slate-400 font-bold">버튼을 눌러주세요</p>
+                                </div>
                             )}
                         </div>
 
