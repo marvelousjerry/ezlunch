@@ -388,11 +388,22 @@ export default function LunchRoulette() {
                                                 </div>
                                             </>
                                         ) : (
-                                            <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-orange-200">
-                                                <div className="text-6xl mb-2">🍽️</div>
-                                                <span className="text-xs font-bold text-orange-300">이미지 준비중</span>
-                                                <div className="absolute bottom-4 left-4">
-                                                    <h2 className="text-3xl font-black text-slate-900">{selectedStore.name}</h2>
+                                            <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50/50 text-orange-200 relative overflow-hidden">
+                                                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, #fb923c 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
+                                                <div className="text-8xl mb-4 grayscale opacity-50 filter drop-shadow-sm select-none animate-bounce-slow">
+                                                    {selectedStore.category.includes('한식') ? '🍚' :
+                                                        selectedStore.category.includes('중식') ? '🥟' :
+                                                            selectedStore.category.includes('일식') ? '🍣' :
+                                                                selectedStore.category.includes('양식') ? '🍝' :
+                                                                    selectedStore.category.includes('치킨') ? '🍗' :
+                                                                        selectedStore.category.includes('피자') ? '🍕' :
+                                                                            selectedStore.category.includes('버거') ? '🍔' :
+                                                                                selectedStore.category.includes('카페') ? '☕' :
+                                                                                    '🍽️'}
+                                                </div>
+                                                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white/90 to-transparent pt-12">
+                                                    <h2 className="text-2xl font-black text-slate-800 leading-tight text-center">{selectedStore.name}</h2>
+                                                    <p className="text-center text-xs font-bold text-orange-400 mt-1">{selectedStore.category} 전문점</p>
                                                 </div>
                                             </div>
                                         )}
@@ -449,55 +460,57 @@ export default function LunchRoulette() {
                     )}
                 </div>
 
-                {!isSpinning && selectedStore && (
-                    <div className="space-y-4 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-                        <div className="flex items-center justify-between px-1">
-                            <h3 className="font-black text-slate-800 flex items-center gap-2">
-                                <MessageSquare className="w-5 h-5 text-orange-500" />
-                                실시간 방문 후기
-                            </h3>
-                            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">최신 검색 결과</span>
-                        </div>
+                {
+                    !isSpinning && selectedStore && (
+                        <div className="space-y-4 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+                            <div className="flex items-center justify-between px-1">
+                                <h3 className="font-black text-slate-800 flex items-center gap-2">
+                                    <MessageSquare className="w-5 h-5 text-orange-500" />
+                                    실시간 방문 후기
+                                </h3>
+                                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">최신 검색 결과</span>
+                            </div>
 
-                        {isReviewsLoading ? (
-                            <div className="flex gap-4 overflow-x-hidden pb-2">
-                                {[1, 2].map(i => (
-                                    <div key={i} className="min-w-[240px] h-32 bg-slate-50 rounded-2xl animate-pulse border border-slate-100"></div>
-                                ))}
-                            </div>
-                        ) : reviews.length > 0 ? (
-                            <div className="flex gap-4 overflow-x-auto pb-6 custom-scrollbar snap-x">
-                                {reviews.map((review, idx) => (
-                                    <a
-                                        key={idx}
-                                        href={review.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="min-w-[260px] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-orange-200 transition-all snap-center flex flex-col justify-between group"
-                                    >
-                                        <div>
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${review.type === 'blog' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
-                                                    {review.type}
-                                                </span>
-                                                <span className="text-[10px] text-slate-400 font-medium">{new Date(review.datetime).toLocaleDateString()}</span>
+                            {isReviewsLoading ? (
+                                <div className="flex gap-4 overflow-x-hidden pb-2">
+                                    {[1, 2].map(i => (
+                                        <div key={i} className="min-w-[240px] h-32 bg-slate-50 rounded-2xl animate-pulse border border-slate-100"></div>
+                                    ))}
+                                </div>
+                            ) : reviews.length > 0 ? (
+                                <div className="flex gap-4 overflow-x-auto pb-6 custom-scrollbar snap-x">
+                                    {reviews.map((review, idx) => (
+                                        <a
+                                            key={idx}
+                                            href={review.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="min-w-[260px] bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-orange-200 transition-all snap-center flex flex-col justify-between group"
+                                        >
+                                            <div>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${review.type === 'blog' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                        {review.type}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-medium">{new Date(review.datetime).toLocaleDateString()}</span>
+                                                </div>
+                                                <h4 className="text-[13px] font-bold text-slate-800 line-clamp-2 mb-3 group-hover:text-primary transition-colors leading-relaxed" dangerouslySetInnerHTML={{ __html: review.title }}></h4>
                                             </div>
-                                            <h4 className="text-[13px] font-bold text-slate-800 line-clamp-2 mb-3 group-hover:text-primary transition-colors leading-relaxed" dangerouslySetInnerHTML={{ __html: review.title }}></h4>
-                                        </div>
-                                        <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
-                                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                            {review.blogname || review.cafename}
-                                        </p>
-                                    </a>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="py-10 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                                <p className="text-xs text-slate-400 font-bold">검색된 최신 후기가 없습니다.</p>
-                            </div>
-                        )}
-                    </div>
-                )}
+                                            <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
+                                                <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                {review.blogname || review.cafename}
+                                            </p>
+                                        </a>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="py-10 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                                    <p className="text-xs text-slate-400 font-bold">검색된 최신 후기가 없습니다.</p>
+                                </div>
+                            )}
+                        </div>
+                    )
+                }
 
                 <div className="w-full space-y-6 pt-2">
                     <div className="flex justify-center gap-8 select-none">
@@ -534,7 +547,7 @@ export default function LunchRoulette() {
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

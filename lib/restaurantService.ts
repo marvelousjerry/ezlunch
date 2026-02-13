@@ -130,25 +130,32 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
                 const html = await res.text();
                 const $ = cheerio.load(html);
 
-                // Meta Tags
+                // Meta Tags - Most reliable for main image and description
                 const ogImage = $('meta[property="og:image"]').attr('content');
                 if (ogImage) imageUrl = ogImage;
 
                 const ogDesc = $('meta[property="og:description"]').attr('content');
                 if (ogDesc) description = ogDesc;
 
-                // Attempt to find rating (Structure might vary, this is a best-effort based on common structures)
-                // Note: Kakao often renders these via JS, so static HTML scraping might miss it.
-                // We depend mostly on og:image here.
-
-                // Scrape Menu Data (Best Effort)
+                // Scrape Menu Data - Try multiple common selectors
+                // Selector 1: Standard list_menu
                 $('.list_menu > li').each((_, el) => {
                     const name = $(el).find('.loss_word').text().trim();
                     const price = $(el).find('.price_menu').text().trim();
-                    if (name) {
-                        menuInfo.push({ name, price: price || '가격 정보 없음' });
-                    }
+                    if (name) menuInfo.push({ name, price: price || '' });
                 });
+
+                // Selector 2: If list_menu is empty, try other patterns if any (Kakao changes DOM frequently)
+                if (menuInfo.length === 0) {
+                    // Fallback logic could go here if new patterns are discovered
+                }
+
+                // Clean up menu prices
+                menuInfo = menuInfo.map(item => ({
+                    ...item,
+                    price: item.price.replace(/[^0-9,]/g, '') + '원'
+                })).filter(item => item.name); // Filter empty names
+
                 // Limit to 5 items
                 menuInfo = menuInfo.slice(0, 5);
             }
