@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { Shuffle, Check, ScanSearch, Info, MapPin, ArrowRight, RotateCcw, ArrowLeft, MessageSquare } from 'lucide-react';
@@ -387,7 +387,7 @@ export default function LunchRoulette() {
                                 className="w-full py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-2xl font-black text-xl shadow-xl shadow-orange-200 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:scale-100"
                             >
                                 <Shuffle className="w-6 h-6" />
-                                {isSpinning ? '돌라는 중...' : 'LUNCH SPIN!'}
+                                {isSpinning ? '돌라는 중...' : '오늘의 메뉴는?'}
                             </button>
                             {selectedCategories.length === 0 && (
                                 <p className="text-xs text-red-500 font-bold text-center animate-pulse">카테고리를 먼저 선택해주세요!</p>
@@ -481,3 +481,4 @@ export default function LunchRoulette() {
         </div>
     );
 }
+
