@@ -127,8 +127,8 @@ export default function LunchRoulette() {
         try {
             // Fetch both Standard (Lunch/Dinner) and Delivery-specific
             const [resStandard, resDelivery] = await Promise.all([
-                fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&t=${Date.now()}`),
-                fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=3000&menu=배달&t=${Date.now()}`)
+                fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=1500&t=${Date.now()}`),
+                fetch(`/api/restaurants/scan?lat=${latitude}&lng=${longitude}&radius=1500&menu=배달&t=${Date.now()}`)
             ]);
 
             const dataStandard = await resStandard.json();

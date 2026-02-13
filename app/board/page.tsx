@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Music, Send, Heart } from 'lucide-react';
-import HeartExplosion from '@/components/HeartExplosion';
+// HeartExplosion removed
 
 interface Post {
     id: string;
@@ -23,8 +23,7 @@ export default function BoardPage() {
     const [formData, setFormData] = useState({ title: '', artist: '', content: '', password: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Heart Effect State
-    const [heartEffect, setHeartEffect] = useState<{ active: boolean; x: number; y: number }>({ active: false, x: 0, y: 0 });
+    // Heart Effect Removed
 
     useEffect(() => {
         fetchPosts();
@@ -43,17 +42,7 @@ export default function BoardPage() {
     };
 
     const handleLike = async (postId: string, e: React.MouseEvent) => {
-        // Find current post
-        const post = posts.find(p => p.id === postId);
-
-        // Trigger Heart Effect ONLY if not currently liked
-        if (post && !post.liked) {
-            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            // Scroll correction is automatic with getBoundingClientRect as it returns viewport coordinates.
-            // But we need to make sure the HeartExplosion component is fixed/absolute relative to viewport.
-            setHeartEffect({ active: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-            setTimeout(() => setHeartEffect(prev => ({ ...prev, active: false })), 1200);
-        }
+        // Heart effect logic removed per user request
 
         try {
             const res = await fetch('/api/posts/like', {
@@ -354,9 +343,9 @@ export default function BoardPage() {
                 </div>
             </div>
 
-            {/* Edit Modal - Moved outside to prevent clipping */}
+            {/* Edit Modal - Fixed Full Screen */}
             {isEditModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in text-left">
+                <div className="fixed top-0 left-0 w-screen h-screen z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in text-left">
                     <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative animate-scale-up">
                         <button
                             onClick={closeEditModal}
@@ -431,7 +420,6 @@ export default function BoardPage() {
                     </div>
                 </div>
             )}
-            <HeartExplosion active={heartEffect.active} x={heartEffect.x} y={heartEffect.y} />
         </>
     );
 }
