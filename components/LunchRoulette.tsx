@@ -331,7 +331,7 @@ export default function LunchRoulette() {
     }
 
     return (
-        <div className="flex flex-col items-center justify-center p-8 bg-white/80 backdrop-blur-md rounded-[2.5rem] shadow-2xl border border-orange-50 w-full max-w-[32rem] mx-auto relative animate-fade-in">
+        <div className="flex flex-col items-center justify-center p-8 bg-white rounded-[2.5rem] shadow-xl w-full max-w-[32rem] mx-auto relative animate-fade-in">
             <div className="absolute top-6 left-6 flex gap-4 z-20">
                 <button onClick={resetFlow} className="flex items-center gap-1 text-gray-400 hover:text-primary transition-colors">
                     <Check className="w-4 h-4" /> <span className="text-xs font-bold">다시하기</span>
@@ -439,11 +439,11 @@ export default function LunchRoulette() {
                                     </div>
 
                                     {/* Menu Section */}
-                                    {storeDetails?.menuInfo && storeDetails.menuInfo.length > 0 && (
-                                        <div className="px-5 pb-5">
-                                            <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-1.5">
-                                                <span className="text-orange-500">🍽️</span> 대표 메뉴
-                                            </h3>
+                                    <div className="px-5 pb-5">
+                                        <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-1.5">
+                                            <span className="text-orange-500">🍽️</span> 대표 메뉴
+                                        </h3>
+                                        {storeDetails?.menuInfo && storeDetails.menuInfo.length > 0 ? (
                                             <ul className="space-y-2">
                                                 {storeDetails.menuInfo.map((menu, idx) => (
                                                     <li key={idx} className="flex justify-between items-center text-xs border-b border-dashed border-slate-100 pb-2 last:border-0 last:pb-0">
@@ -452,8 +452,12 @@ export default function LunchRoulette() {
                                                     </li>
                                                 ))}
                                             </ul>
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <div className="py-4 text-center bg-slate-50 rounded-xl border border-slate-100">
+                                                <p className="text-xs text-slate-400 font-bold">등록된 메뉴 정보가 없습니다.</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
