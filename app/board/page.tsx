@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { ArrowLeft, Music, Send, Heart } from 'lucide-react';
+import { getUserId } from '@/lib/userId';
 // HeartExplosion removed
 
 interface Post {
@@ -32,7 +33,12 @@ export default function BoardPage() {
 
     const fetchPosts = async () => {
         try {
-            const res = await fetch('/api/posts');
+            const userId = getUserId();
+            const res = await fetch('/api/posts', {
+                headers: {
+                    'X-User-ID': userId
+                }
+            });
             const data = await res.json();
             setPosts(data);
         } catch (error) {
@@ -46,9 +52,13 @@ export default function BoardPage() {
         // Heart effect logic removed per user request
 
         try {
+            const userId = getUserId();
             const res = await fetch('/api/posts/like', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-ID': userId
+                },
                 body: JSON.stringify({ postId }),
             });
             if (res.ok) {

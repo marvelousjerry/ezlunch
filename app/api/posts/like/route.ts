@@ -5,8 +5,8 @@ export async function POST(request: Request) {
     try {
         const { postId } = await request.json();
 
-        // Get client IP for unique voting (per place/device)
-        const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
+        // Get user ID from header (set by client)
+        const userId = request.headers.get('x-user-id') || 'anonymous';
 
         if (!postId) {
             return NextResponse.json({ error: 'Post ID is required' }, { status: 400 });
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         const result = await prisma.$transaction(async (tx) => {
             const existingLike = await (tx as any).like.findUnique({
                 where: {
-                    postId_ip: { postId, ip }
+                    postId_userId: { postId, userId }
                 }
             });
 
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
             } else {
                 // Add like
                 await (tx as any).like.create({
-                    data: { postId, ip }
+                    data: { postId, userId }
                 });
                 const updatedPost = await (tx as any).post.update({
                     where: { id: postId },

@@ -15,7 +15,7 @@ async function searchYouTubeVideoId(query: string) {
 
 export async function GET(request: Request) {
     try {
-        const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
+        const userId = request.headers.get('x-user-id') || 'anonymous';
 
         const posts = await prisma.post.findMany({
             orderBy: { createdAt: 'desc' }
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
         const postsWithLiked = await Promise.all(posts.map(async (post) => {
             const like = await (prisma.like as any).findUnique({
                 where: {
-                    postId_ip: { postId: post.id, ip }
+                    postId_userId: { postId: post.id, userId }
                 }
             });
             return {
