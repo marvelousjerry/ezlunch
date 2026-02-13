@@ -155,6 +155,17 @@ export default function LunchRoulette() {
         }
     };
 
+    const resetFlow = () => {
+        setStep('intro');
+        setSelectedStore(null);
+        setSelectedPenalty(null);
+        setIsSpinning(false);
+        setIsPenalty(false);
+        setStoreDetails(null);
+        setReviews([]);
+        setStores([]);
+    };
+
     const toggleCategory = (cat: string) => {
         if (selectedCategories.includes(cat)) {
             setSelectedCategories(prev => prev.filter(c => c !== cat));
