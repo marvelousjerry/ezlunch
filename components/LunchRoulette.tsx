@@ -46,7 +46,13 @@ export default function LunchRoulette() {
     const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number }>({ lat: 37.5635, lng: 127.0035 });
 
     // Store Details & Reviews
-    const [storeDetails, setStoreDetails] = useState<{ imageUrl: string | null; description: string | null } | null>(null);
+    const [storeDetails, setStoreDetails] = useState<{
+        imageUrl: string | null;
+        description: string | null;
+        rating?: string | null;
+        reviewCount?: string | null;
+        blogReviewUrl?: string | null;
+    } | null>(null);
     const [isDetailsLoading, setIsDetailsLoading] = useState(false);
     const [reviews, setReviews] = useState<any[]>([]);
     const [isReviewsLoading, setIsReviewsLoading] = useState(false);
@@ -354,42 +360,72 @@ export default function LunchRoulette() {
                     )}
 
                     {!isSpinning && (selectedStore || selectedPenalty) && (
-                        <div className="w-full h-full flex flex-col items-center justify-center relative animate-enter py-8">
+                        <div className="w-full h-full flex flex-col relative animate-enter">
                             {isPenalty ? (
-                                <div className="text-center">
-                                    <div className="text-6xl mb-4 animate-bounce">🚨</div>
-                                    <div className="text-2xl font-black text-red-500 leading-tight break-keep px-6">{selectedPenalty}</div>
+                                <div className="text-center py-10 flex flex-col items-center justify-center h-full">
+                                    <div className="text-7xl mb-6 animate-bounce">🚨</div>
+                                    <div className="text-3xl font-black text-red-500 leading-tight break-keep px-6">{selectedPenalty}</div>
                                 </div>
                             ) : selectedStore && (
-                                <div className="w-full h-full flex flex-col items-center relative group">
-                                    {storeDetails?.imageUrl && (
-                                        <div className="absolute inset-0 z-0 scale-110">
-                                            <img src={storeDetails.imageUrl} alt={selectedStore.name} className="w-full h-full object-cover opacity-20 blur-sm" />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-orange-50/80 via-transparent to-transparent"></div>
-                                        </div>
-                                    )}
-
-                                    <div className="z-10 flex flex-col items-center justify-center h-full px-6 text-center">
-                                        <div className="mb-4 relative">
-                                            {isDetailsLoading ? (
-                                                <div className="w-28 h-28 bg-white/80 rounded-2xl animate-pulse shadow-sm flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div></div>
-                                            ) : storeDetails?.imageUrl ? (
-                                                <div className="w-32 h-32 rounded-2xl overflow-hidden shadow-2xl border-4 border-white transform -rotate-3 transition-transform group-hover:rotate-0">
-                                                    <img src={storeDetails.imageUrl} alt="Food" className="w-full h-full object-cover" />
+                                <div className="w-full h-full flex flex-col relative group pb-4">
+                                    {/* Hero Image Section */}
+                                    <div className="relative w-full h-64 rounded-[2rem] overflow-hidden shadow-lg mb-6 group bg-gray-100">
+                                        {isDetailsLoading ? (
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                                                <div className="w-10 h-10 border-4 border-orange-200 border-t-primary rounded-full animate-spin"></div>
+                                            </div>
+                                        ) : storeDetails?.imageUrl ? (
+                                            <>
+                                                <img
+                                                    src={storeDetails.imageUrl}
+                                                    alt={selectedStore.name}
+                                                    className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                                                <div className="absolute bottom-4 left-4 right-4 text-white">
+                                                    <span className="px-2.5 py-1 bg-primary text-white rounded-lg text-[10px] font-black tracking-wider uppercase mb-2 inline-block">
+                                                        {selectedStore.category}
+                                                    </span>
+                                                    <h2 className="text-3xl font-black drop-shadow-md leading-tight">{selectedStore.name}</h2>
                                                 </div>
-                                            ) : (
-                                                <div className="w-24 h-24 bg-white rounded-2xl shadow-sm flex items-center justify-center text-4xl">✨</div>
-                                            )}
+                                            </>
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center bg-orange-50 text-orange-200">
+                                                <div className="text-6xl mb-2">🍽️</div>
+                                                <span className="text-xs font-bold text-orange-300">이미지 준비중</span>
+                                                <div className="absolute bottom-4 left-4">
+                                                    <h2 className="text-3xl font-black text-slate-900">{selectedStore.name}</h2>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Info Section */}
+                                    <div className="px-2 space-y-4">
+                                        {/* Rating & Review Summary */}
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-1 bg-yellow-400/10 px-3 py-1.5 rounded-xl border border-yellow-400/20 text-yellow-700 font-bold text-sm">
+                                                <span>⭐</span>
+                                                <span>{storeDetails?.rating || '별점 정보 없음'}</span>
+                                            </div>
+                                            <div className="text-xs font-bold text-slate-400">
+                                                리뷰 {storeDetails?.reviewCount || '0'}개
+                                            </div>
                                         </div>
 
-                                        <h2 className="text-3xl font-black text-slate-900 mb-2 drop-shadow-sm">{selectedStore.name}</h2>
-                                        <div className="flex flex-col gap-2 items-center">
-                                            <span className="px-3 py-1 bg-primary text-white rounded-full text-[10px] font-black tracking-wider uppercase">{selectedStore.category}</span>
-                                            {storeDetails?.description && (
-                                                <p className="text-slate-600 text-[11px] font-bold line-clamp-2 max-w-[240px] leading-relaxed bg-white/60 backdrop-blur-sm p-3 rounded-xl border border-white/50 shadow-sm">
+                                        {/* Description */}
+                                        {storeDetails?.description && (
+                                            <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                                                <p className="text-slate-600 text-sm font-medium leading-relaxed">
                                                     {storeDetails.description.replace(/&nbsp;/g, ' ')}
                                                 </p>
-                                            )}
+                                            </div>
+                                        )}
+
+                                        {/* Address / Distance */}
+                                        <div className="flex items-start gap-2 text-xs text-slate-500 font-medium px-1">
+                                            <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                                            <span>{selectedStore.address || '주소 정보 없음'} ({Math.round(selectedStore.distance || 0)}m)</span>
                                         </div>
                                     </div>
                                 </div>

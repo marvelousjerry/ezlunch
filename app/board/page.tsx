@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Music, Send, Heart } from 'lucide-react';
+import HeartExplosion from '@/components/HeartExplosion';
 
 interface Post {
     id: string;
@@ -22,6 +23,9 @@ export default function BoardPage() {
     const [formData, setFormData] = useState({ title: '', artist: '', content: '', password: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Heart Effect State
+    const [heartEffect, setHeartEffect] = useState<{ active: boolean; x: number; y: number }>({ active: false, x: 0, y: 0 });
+
     useEffect(() => {
         fetchPosts();
     }, []);
@@ -38,7 +42,12 @@ export default function BoardPage() {
         }
     };
 
-    const handleLike = async (postId: string) => {
+    const handleLike = async (postId: string, e: React.MouseEvent) => {
+        // Trigger Heart Effect
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        setHeartEffect({ active: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+        setTimeout(() => setHeartEffect(prev => ({ ...prev, active: false })), 600);
+
         try {
             const res = await fetch('/api/posts/like', {
                 method: 'POST',
@@ -182,10 +191,10 @@ export default function BoardPage() {
                 <div className="mt-3 flex justify-between items-center">
                     <div className="flex items-center gap-1">
                         <button
-                            onClick={() => handleLike(post.id)}
+                            onClick={(e) => handleLike(post.id, e)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${post.liked
-                                    ? 'bg-orange-500 text-white shadow-orange-200 shadow-lg'
-                                    : 'bg-slate-50 text-slate-400 hover:bg-orange-50 hover:text-orange-500'
+                                ? 'bg-orange-500 text-white shadow-orange-200 shadow-lg'
+                                : 'bg-slate-50 text-slate-400 hover:bg-orange-50 hover:text-orange-500'
                                 }`}
                         >
                             <Heart className={`w-3.5 h-3.5 ${post.liked ? 'fill-current' : ''}`} />

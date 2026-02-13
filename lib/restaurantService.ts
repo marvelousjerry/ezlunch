@@ -105,26 +105,53 @@ async function fetchFromKakao(lat: number, lng: number, radius: number = 2000, k
     }
 }
 
-export async function getRestaurantDetails(placeId: string, placeUrl: string, name?: string, address?: string) {
-    // Instead of scraping which is flaky, we prioritize Blog Search to find an image/description.
 
+import * as cheerio from 'cheerio';
+
+export async function getRestaurantDetails(placeId: string, placeUrl: string, name?: string, address?: string) {
     let imageUrl: string | null = null;
     let description: string | null = null;
     let blogReviewUrl: string | null = null;
+    let rating: string | null = null;
+    let reviewCount: string | null = null;
 
-    if (KAKAO_API_KEY && name) {
+    // 1. Try to scrape data from Kakao Place URL (Highest Priority for Image/Rating)
+    if (placeUrl) {
         try {
-            // Refined Query: "[Name] [District_Dong]"
-            // We need to extract the 'Dong' or 'Gu' from the address if available to be specific.
-            // But here we don't have address passed in. We should probably pass address to this function.
-            // Updating the signature of this function in the next step.
-            // For now, let's just use the name as efficiently as possible.
+            // Kakao Map Place URL often redirects or requires headers.
+            const res = await fetch(placeUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+            });
 
+            if (res.ok) {
+                const html = await res.text();
+                const $ = cheerio.load(html);
+
+                // Meta Tags
+                const ogImage = $('meta[property="og:image"]').attr('content');
+                if (ogImage) imageUrl = ogImage;
+
+                const ogDesc = $('meta[property="og:description"]').attr('content');
+                if (ogDesc) description = ogDesc;
+
+                // Attempt to find rating (Structure might vary, this is a best-effort based on common structures)
+                // Note: Kakao often renders these via JS, so static HTML scraping might miss it.
+                // We depend mostly on og:image here.
+            }
+        } catch (e) {
+            console.error('Kakao Place Scraping Failed:', e);
+        }
+    }
+
+    // 2. Fallback: Blog Search (If scraping didn't get an image)
+    if (!imageUrl && KAKAO_API_KEY && name) {
+        try {
             let query = name;
             if (address) {
                 const parts = address.split(' ');
                 if (parts.length > 2) {
-                    // e.g. "Seoul Jung-gu Myeongdong" -> "Myeongdong Name"
                     query = `${parts[2]} ${name}`;
                 } else if (parts.length > 1) {
                     query = `${parts[1]} ${name}`;
@@ -137,16 +164,15 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
             const searchData = await searchRes.json();
 
             if (searchData.documents && searchData.documents.length > 0) {
-                // Find first item with a thumbnail
                 const validDoc = searchData.documents.find((doc: any) => doc.thumbnail);
                 if (validDoc) {
                     imageUrl = validDoc.thumbnail;
-                    description = validDoc.title.replace(/<[^>]*>?/gm, ''); // Strip HTML tags
+                    if (!description) description = validDoc.title.replace(/<[^>]*>?/gm, '');
                     blogReviewUrl = validDoc.url;
                 }
             }
 
-            // Fallback: If no image found in blogs, try Image Search
+            // 3. Fallback: Image Search
             if (!imageUrl) {
                 try {
                     const imgRes = await fetch(`https://dapi.kakao.com/v2/search/image?query=${encodeURIComponent(query)}&size=1`, {
@@ -166,7 +192,7 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
         }
     }
 
-    return { imageUrl, description, blogReviewUrl };
+    return { imageUrl, description, blogReviewUrl, rating, reviewCount };
 }
 
 export async function getRestaurants(lat: number, lng: number, menu?: string | null, radius: number = 1000) {
