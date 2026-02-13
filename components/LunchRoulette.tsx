@@ -355,14 +355,14 @@ export default function LunchRoulette() {
                 {/* 1. Roulette Idle / Spinning State */}
                 {(!selectedStore && !selectedPenalty) && (
                     <div className="w-full flex-1 flex flex-col items-center justify-center gap-6 py-8">
-                        <div className={`relative w-48 h-48 bg-white rounded-full flex items-center justify-center shadow-lg border-4 transition-all duration-300 ${isSpinning ? 'border-orange-400 animate-spin' : 'border-orange-100'}`}>
+                        <div className={`relative w-48 h-48 bg-white rounded-full flex items-center justify-center shadow-lg border-4 transition-all duration-300 ${isSpinning ? 'border-orange-400' : 'border-orange-100'}`}>
                             {isSpinning ? (
-                                <div className="text-center animate-pulse">
-                                    <span className="text-6xl mb-2 block">🥘</span>
-                                    <span className="text-sm font-bold text-slate-600 px-2 break-keep leading-tight block">{currentCandidate}</span>
+                                <div className="text-center">
+                                    <span className="text-6xl mb-2 block animate-bounce">🥘</span>
+                                    <span className="text-lg font-bold text-slate-800 px-2 break-keep leading-tight block">{currentCandidate}</span>
                                 </div>
                             ) : (
-                                <span className="text-6xl animate-bounce-slow">🥘</span>
+                                <span className="text-6xl">🥘</span>
                             )}
                         </div>
 
@@ -461,11 +461,11 @@ export default function LunchRoulette() {
                                                 구글 지도
                                             </Link>
                                             <Link
-                                                href={selectedStore.url || `https://place.map.kakao.com/`}
+                                                href={`https://www.google.com/search?q=${encodeURIComponent(selectedStore.name + ' 메뉴')}`}
                                                 target="_blank"
                                                 className="py-3 bg-yellow-400 text-slate-800 rounded-xl font-bold text-center text-xs hover:bg-yellow-300 transition-all flex items-center justify-center gap-1"
                                             >
-                                                <Info className="w-3 h-3" /> 메뉴 전체 보기
+                                                <Info className="w-3 h-3" /> 메뉴 검색
                                             </Link>
                                         </div>
                                     </div>

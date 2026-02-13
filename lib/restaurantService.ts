@@ -132,12 +132,13 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
     // 1. Priority 1: Kakao Image Search API (Most Reliable in Production)
     if (KAKAO_API_KEY && name) {
         try {
-            // Try exact name + "맛집" or just name
-            const queries = [`${name} 맛집`, name];
+            // Try diverse queries to find a valid image
+            const queries = [`${name} 음식`, `${name} 맛집`, `${name} 메뉴`, name];
 
             for (const query of queries) {
                 if (imageUrl) break;
 
+                console.log(`[API] Searching image for: ${query}`);
                 const imgRes = await fetch(`https://dapi.kakao.com/v2/search/image?query=${encodeURIComponent(query)}&size=1`, {
                     headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
                 });
@@ -146,13 +147,17 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
                     const imgData = await imgRes.json();
                     if (imgData.documents && imgData.documents.length > 0) {
                         imageUrl = imgData.documents[0].thumbnail_url;
-                        console.log(`[API] Found image for ${name} via Image API`);
+                        console.log(`[API] Found image for ${name} via '${query}'`);
                     }
+                } else {
+                    console.warn(`[API] Image search failed for ${query}: ${imgRes.status}`);
                 }
             }
         } catch (e) {
             console.warn('Image Search API failed:', e);
         }
+    } else {
+        console.warn('[API] Skipping Image Search: No API Key or Name');
     }
 
     // 2. Priority 2: Blog Search API (Good for thumbnails + deep linking)
