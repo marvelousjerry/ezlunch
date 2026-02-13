@@ -136,91 +136,36 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
         };
     }
 
-    // 1. Try to scrape data from Kakao Place URL (Highest Priority for Image/Rating)
-    if (placeUrl) {
+    // 1. Priority 1: Kakao Image Search API (Most Reliable in Production)
+    if (KAKAO_API_KEY && name) {
         try {
-            // Kakao Map Place URL often redirects or requires headers.
-            // Try with a randomized User-Agent to reduce blocking chance
-            const res = await fetch(placeUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
-                },
-                signal: AbortSignal.timeout(3000) // 3s timeout to prevent hanging
-            });
+            // Try exact name + "맛집" or just name
+            const queries = [`${name} 맛집`, name];
 
-            if (res.ok) {
-                const html = await res.text();
-                const $ = cheerio.load(html);
+            for (const query of queries) {
+                if (imageUrl) break;
 
-                // Meta Tags - Most reliable for main image and description
-                const ogImage = $('meta[property="og:image"]').attr('content');
-                if (ogImage) imageUrl = ogImage;
-
-                const ogDesc = $('meta[property="og:description"]').attr('content');
-                if (ogDesc) description = ogDesc;
-
-                // Scrape Menu - Attempt basic selectors
-                $('.list_menu > li').each((_, el) => {
-                    const name = $(el).find('.loss_word').text().trim();
-                    const price = $(el).find('.price_menu').text().trim();
-                    if (name) menuInfo.push({ name, price: price || '' });
+                const imgRes = await fetch(`https://dapi.kakao.com/v2/search/image?query=${encodeURIComponent(query)}&size=1`, {
+                    headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
                 });
 
-                // Clean up prices
-                menuInfo = menuInfo.map(item => ({
-                    ...item,
-                    price: item.price.replace(/[^0-9,]/g, '') + '원'
-                })).filter(item => item.name);
-            }
-        } catch (e) {
-            console.warn(`[Scraping] Direct Kakao access failed for ${name}:`, e);
-        }
-    }
-
-    // 2. Fallback: Scrape Daum Search (Very reliable for Images)
-    // If we have no image yet, try searching Daum for the restaurant name
-    if (!imageUrl && name) {
-        try {
-            const daumQuery = encodeURIComponent(name);
-            const daumUrl = `https://search.daum.net/search?w=tot&q=${daumQuery}`;
-
-            const res = await fetch(daumUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                },
-                signal: AbortSignal.timeout(3000)
-            });
-
-            if (res.ok) {
-                const html = await res.text();
-                const $ = cheerio.load(html);
-
-                // Try to find the thumbnail in the "Place" section or "Power Link" section
-                // Selector based on 'debug_daum.html' analysis (.thumb_img or .thumb_bf img)
-                const thumbSrc = $('.list_place .thumb_img').first().attr('src') ||
-                    $('.list_place .thumb_img').first().attr('data-original-src') ||
-                    $('.thumb_bf img').first().attr('data-original-src') ||
-                    $('.thumb_bf img').first().attr('src');
-
-                if (thumbSrc) {
-                    // Daum often uses base64 placeholders, look for data-original-src first in Cheerio logic above
-                    imageUrl = thumbSrc.startsWith('//') ? 'https:' + thumbSrc : thumbSrc;
-                    console.log(`[Scraping] Found image from Daum Search for ${name}`);
+                if (imgRes.ok) {
+                    const imgData = await imgRes.json();
+                    if (imgData.documents && imgData.documents.length > 0) {
+                        imageUrl = imgData.documents[0].thumbnail_url;
+                        console.log(`[API] Found image for ${name} via Image API`);
+                    }
                 }
             }
         } catch (e) {
-            console.warn(`[Scraping] Daum Search fallback failed for ${name}:`, e);
+            console.warn('Image Search API failed:', e);
         }
     }
 
-    // 3. Fallback: Blog Search API (Last Resort)
+    // 2. Priority 2: Blog Search API (Good for thumbnails + deep linking)
     if (!imageUrl && KAKAO_API_KEY && name) {
         try {
-            let query = name;
-            // ... (Simple cleanup if needed) ...
-
-            const searchRes = await fetch(`https://dapi.kakao.com/v2/search/blog?query=${encodeURIComponent(query)}&size=1`, {
+            const searchRes = await fetch(`https://dapi.kakao.com/v2/search/blog?query=${encodeURIComponent(name)}&size=1`, {
                 headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
             });
             const searchData = await searchRes.json();
@@ -234,7 +179,56 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
                 }
             }
         } catch (e) {
-            console.error('Fallback blog search failed:', e);
+            console.warn('Blog Search API failed:', e);
+        }
+    }
+
+    // 3. Fallback: Scraping (Least Reliable in Cloud Envs)
+    if (!imageUrl && placeUrl) {
+        try {
+            // Try to scrape data from Kakao Place URL
+            const res = await fetch(placeUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                },
+                signal: AbortSignal.timeout(2000)
+            });
+
+            if (res.ok) {
+                const html = await res.text();
+                const $ = cheerio.load(html);
+
+                // Meta Tags - Most reliable for main image and description
+                const ogImage = $('meta[property="og:image"]').attr('content');
+                if (ogImage) imageUrl = ogImage;
+
+                const ogDesc = $('meta[property="og:description"]').attr('content');
+                if (ogDesc) description = ogDesc;
+
+                // Scrape Menu - Attempt multiple selectors
+                $('.list_menu > li').each((_, el) => {
+                    const name = $(el).find('.loss_word').text().trim();
+                    const price = $(el).find('.price_menu').text().trim();
+                    if (name) menuInfo.push({ name, price: price || '' });
+                });
+
+                // If list_menu failed, try another common selector
+                if (menuInfo.length === 0) {
+                    $('.menu_list > li').each((_, el) => {
+                        const name = $(el).find('.menu_name').text().trim();
+                        const price = $(el).find('.price').text().trim();
+                        if (name) menuInfo.push({ name, price: price || '' });
+                    });
+                }
+
+                menuInfo = menuInfo.map(item => ({
+                    ...item,
+                    price: item.price.replace(/[^0-9,]/g, '') + '원'
+                })).filter(item => item.name).slice(0, 5);
+            }
+        } catch (e) {
+            console.warn('Scraping fallback failed:', e);
         }
     }
 
