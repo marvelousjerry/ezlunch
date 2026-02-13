@@ -116,6 +116,26 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
     let reviewCount: string | null = null;
     let menuInfo: { name: string; price: string }[] = [];
 
+    // 🚨 EMERGENCY FALLBACK: Hardcoded data for known difficult-to-scrape places (User specified)
+    // ID 8552691 is Taegukdang
+    if (placeId === '8552691' || (name && name.includes('태극당'))) {
+        console.log('[Emergency] Using hardcoded data for Taegukdang');
+        return {
+            imageUrl: 'https://img1.kakaocdn.net/cthumb/local/C800x400.q50/?fname=http%3A%2F%2Ft1.daumcdn.net%2Flocal%2FkakaomapPhoto%2Freview%2F8e0dfdc6dde458d389d03bc49f72ea7e84c3349c%3Foriginal',
+            description: '80년 전통의 추억을 담은 빵과 모나카',
+            blogReviewUrl: 'https://place.map.kakao.com/8552691',
+            rating: '4.4',
+            reviewCount: '3,900+',
+            menuInfo: [
+                { name: '모나카 아이스크림', price: '3,300원' },
+                { name: '단팥빵', price: '3,300원' },
+                { name: '야채사라다', price: '7,600원' },
+                { name: '고방카스테라', price: '6,800원' },
+                { name: '슈크림빵', price: '3,000원' }
+            ]
+        };
+    }
+
     // 1. Try to scrape data from Kakao Place URL (Highest Priority for Image/Rating)
     if (placeUrl) {
         try {
