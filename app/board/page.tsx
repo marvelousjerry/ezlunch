@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { ArrowLeft, Music, Send, Heart } from 'lucide-react';
 // HeartExplosion removed
@@ -230,6 +231,15 @@ export default function BoardPage() {
         </div>
     );
 
+    // Mounted check for Portal
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
+
+    // ... (rest of the component)
+
     return (
         <>
             <div className="space-y-8 animate-fade-in-up pb-20 relative">
@@ -343,10 +353,10 @@ export default function BoardPage() {
                 </div>
             </div>
 
-            {/* Edit Modal - Fixed Full Screen with inset-0 to prevent scrollbar shifting */}
-            {isEditModalOpen && (
+            {/* Edit Modal - Portal to Body to fix clipping and z-index issues */}
+            {mounted && isEditModalOpen && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in text-left">
-                    <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative animate-scale-up">
+                    <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl relative animate-scale-up" onClick={(e) => e.stopPropagation()}>
                         <button
                             onClick={closeEditModal}
                             className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors"
@@ -418,7 +428,8 @@ export default function BoardPage() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </>
     );

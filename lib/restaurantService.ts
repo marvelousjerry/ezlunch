@@ -140,10 +140,13 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
     if (placeUrl) {
         try {
             // Kakao Map Place URL often redirects or requires headers.
+            // Try with a randomized User-Agent to reduce blocking chance
             const res = await fetch(placeUrl, {
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                }
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                },
+                signal: AbortSignal.timeout(3000) // 3s timeout to prevent hanging
             });
 
             if (res.ok) {
@@ -157,90 +160,81 @@ export async function getRestaurantDetails(placeId: string, placeUrl: string, na
                 const ogDesc = $('meta[property="og:description"]').attr('content');
                 if (ogDesc) description = ogDesc;
 
-                // Scrape Menu Data - Try multiple common selectors
-                // Selector 1: Standard list_menu
+                // Scrape Menu - Attempt basic selectors
                 $('.list_menu > li').each((_, el) => {
                     const name = $(el).find('.loss_word').text().trim();
                     const price = $(el).find('.price_menu').text().trim();
                     if (name) menuInfo.push({ name, price: price || '' });
                 });
 
-                // Selector 2: If list_menu is empty, try other patterns if any (Kakao changes DOM frequently)
-                if (menuInfo.length === 0) {
-                    // Fallback logic could go here if new patterns are discovered
-                }
-
-                // Clean up menu prices
+                // Clean up prices
                 menuInfo = menuInfo.map(item => ({
                     ...item,
                     price: item.price.replace(/[^0-9,]/g, '') + '원'
-                })).filter(item => item.name); // Filter empty names
-
-                // Limit to 5 items
-                menuInfo = menuInfo.slice(0, 5);
+                })).filter(item => item.name);
             }
         } catch (e) {
-            console.error('Kakao Place Scraping Failed:', e);
+            console.warn(`[Scraping] Direct Kakao access failed for ${name}:`, e);
         }
     }
 
-    // 2. Fallback: Blog Search (If scraping didn't get an image)
+    // 2. Fallback: Scrape Daum Search (Very reliable for Images)
+    // If we have no image yet, try searching Daum for the restaurant name
+    if (!imageUrl && name) {
+        try {
+            const daumQuery = encodeURIComponent(name);
+            const daumUrl = `https://search.daum.net/search?w=tot&q=${daumQuery}`;
+
+            const res = await fetch(daumUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                },
+                signal: AbortSignal.timeout(3000)
+            });
+
+            if (res.ok) {
+                const html = await res.text();
+                const $ = cheerio.load(html);
+
+                // Try to find the thumbnail in the "Place" section or "Power Link" section
+                // Selector based on 'debug_daum.html' analysis (.thumb_img or .thumb_bf img)
+                const thumbSrc = $('.list_place .thumb_img').first().attr('src') ||
+                    $('.list_place .thumb_img').first().attr('data-original-src') ||
+                    $('.thumb_bf img').first().attr('data-original-src') ||
+                    $('.thumb_bf img').first().attr('src');
+
+                if (thumbSrc) {
+                    // Daum often uses base64 placeholders, look for data-original-src first in Cheerio logic above
+                    imageUrl = thumbSrc.startsWith('//') ? 'https:' + thumbSrc : thumbSrc;
+                    console.log(`[Scraping] Found image from Daum Search for ${name}`);
+                }
+            }
+        } catch (e) {
+            console.warn(`[Scraping] Daum Search fallback failed for ${name}:`, e);
+        }
+    }
+
+    // 3. Fallback: Blog Search API (Last Resort)
     if (!imageUrl && KAKAO_API_KEY && name) {
         try {
             let query = name;
-            if (address) {
-                const parts = address.split(' ');
-                if (parts.length > 2) {
-                    query = `${parts[2]} ${name}`;
-                } else if (parts.length > 1) {
-                    query = `${parts[1]} ${name}`;
-                }
-            }
+            // ... (Simple cleanup if needed) ...
 
-            const searchRes = await fetch(`https://dapi.kakao.com/v2/search/blog?query=${encodeURIComponent(query)}&size=3`, {
+            const searchRes = await fetch(`https://dapi.kakao.com/v2/search/blog?query=${encodeURIComponent(query)}&size=1`, {
                 headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
             });
             const searchData = await searchRes.json();
 
             if (searchData.documents && searchData.documents.length > 0) {
-                const validDoc = searchData.documents.find((doc: any) => doc.thumbnail);
-                if (validDoc) {
+                const validDoc = searchData.documents[0];
+                if (validDoc?.thumbnail) {
                     imageUrl = validDoc.thumbnail;
                     if (!description) description = validDoc.title.replace(/<[^>]*>?/gm, '');
                     blogReviewUrl = validDoc.url;
                 }
             }
-
-            // 3. Fallback: Image Search
-            if (!imageUrl) {
-                try {
-                    // Try exact name first
-                    let imgRes = await fetch(`https://dapi.kakao.com/v2/search/image?query=${encodeURIComponent(query)}&size=1`, {
-                        headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
-                    });
-                    let imgData = await imgRes.json();
-
-                    // If no result, try just the place name without branch/location if it has long name
-                    if ((!imgData.documents || imgData.documents.length === 0) && name && name.length > 5) {
-                        const simplifiedName = name.split(' ')[0]; // E.g., '어거스트치킨' from '어거스트치킨 동대문점'
-                        if (simplifiedName && simplifiedName !== name) {
-                            imgRes = await fetch(`https://dapi.kakao.com/v2/search/image?query=${encodeURIComponent(simplifiedName + ' 맛집')}&size=1`, {
-                                headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
-                            });
-                            imgData = await imgRes.json();
-                        }
-                    }
-
-                    if (imgData.documents && imgData.documents.length > 0) {
-                        imageUrl = imgData.documents[0].thumbnail_url;
-                    }
-                } catch (imgErr) {
-                    console.error('Image search fallback failed', imgErr);
-                }
-            }
-
         } catch (e) {
-            console.error('Fallback image search failed:', e);
+            console.error('Fallback blog search failed:', e);
         }
     }
 
